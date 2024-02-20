@@ -18,10 +18,6 @@ nonebot-plugin-npu，翱翔门户成绩监控插件，能获取成绩、排名�
 git clone https://github.com/qllokirin/nonebot-plugin-npu.git ./{你的插件目录}
 ```
 
-打开 nonebot2 项目根目录下的 `pyproject.toml` 文件, 在 `[tool.nonebot]` 部分追加写入
-
-    plugins = ["nonebot-plugin-npu"]
-
 依赖安装
 
 * 1.激活python环境
