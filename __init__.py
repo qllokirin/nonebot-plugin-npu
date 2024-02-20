@@ -21,7 +21,7 @@ import json
 from .utils import generate_img_from_html
 
 __plugin_meta__ = PluginMetadata(
-    name="npu",
+    name="nonebot-plugin-npu",
     description="",
     usage="",
     config=Config,
@@ -104,7 +104,7 @@ async def get_username(account_infomation: str = ArgPlainText()):
         await nwpu.send(rank_msg)
 
 
-@scheduler.scheduled_job("cron", minute="*/1")
+@scheduler.scheduled_job("cron", minute="*/15")
 async def run_every_10_minutes_check_rank():
     # 获取全部已登陆的QQ号
     qq_all = []
