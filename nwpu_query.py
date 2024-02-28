@@ -76,36 +76,42 @@ class NwpuQuery():
 
             URL = f'https://uis.nwpu.edu.cn/cas/mfa/initByType/{device}?state={self.state_code}'
             response = self.session.get(URL, headers=self.headers2)
-            gid = json.loads(response.text)['data']['gid']
-
-            URL = f'https://uis.nwpu.edu.cn/attest/api/guard/{device}/send'
-            self.data = {'gid': gid}
-            self.headers3 = self.headers2.copy()
-            self.headers3['Content-Type'] = 'application/json; charset=UTF-8'
-            self.session.post(URL, data=json.dumps(self.data), headers=self.headers3)
+            if json.loads(response.text)['code'] != 0:
+                return json.loads(response.text)['code']
+            else:
+                gid = json.loads(response.text)['data']['gid']
+                URL = f'https://uis.nwpu.edu.cn/attest/api/guard/{device}/send'
+                self.data = {'gid': gid}
+                self.headers3 = self.headers2.copy()
+                self.headers3['Content-Type'] = 'application/json; charset=UTF-8'
+                self.session.post(URL, data=json.dumps(self.data), headers=self.headers3)
+                return 0
 
     def verification_code_login(self, captcha, folder_path):
         URL = f'https://uis.nwpu.edu.cn/attest/api/guard/{self.device}/valid'
         self.data['code'] = captcha
-        self.session.post(URL, data=json.dumps(self.data), headers=self.headers3)
-
-        URL = ("https://uis.nwpu.edu.cn/cas/login?service=https%3A%2F%2Fecampus.nwpu.edu.cn"
-               "%2F%3Fpath%3Dhttps%3A%2F%2Fecampus.nwpu.edu.cn")
-        self.data = {
-            'username': self.username,
-            'password': self.password,
-            'rememberMe': 'true',
-            'currentMenu': '1',
-            'mfaState': self.state_code,
-            'execution': self.execution.group(1),
-            '_eventId': 'submit',
-            'geolocation': '',
-            'submit': '稍等片刻……',
-        }
-        self.session.post(URL, data=self.data, headers=self.headers)
-        cookies = json.dumps(self.session.cookies.get_dict())
-        with open((os.path.join(folder_path, 'cookies.txt')), 'w', encoding='utf-8') as f:
-            f.write(cookies)
+        response = self.session.post(URL, data=json.dumps(self.data), headers=self.headers3)
+        if json.loads(response.text)["data"]["status"] != 2:
+            return json.loads(response.text)["data"]["status"]
+        else:
+            URL = ("https://uis.nwpu.edu.cn/cas/login?service=https%3A%2F%2Fecampus.nwpu.edu.cn"
+                "%2F%3Fpath%3Dhttps%3A%2F%2Fecampus.nwpu.edu.cn")
+            self.data = {
+                'username': self.username,
+                'password': self.password,
+                'rememberMe': 'true',
+                'currentMenu': '1',
+                'mfaState': self.state_code,
+                'execution': self.execution.group(1),
+                '_eventId': 'submit',
+                'geolocation': '',
+                'submit': '稍等片刻……',
+            }
+            self.session.post(URL, data=self.data, headers=self.headers)
+            cookies = json.dumps(self.session.cookies.get_dict())
+            with open((os.path.join(folder_path, 'cookies.txt')), 'w', encoding='utf-8') as f:
+                f.write(cookies)
+            return 2
 
     # 查询成绩
     def get_grades(self, folder_path, sem_query=0):

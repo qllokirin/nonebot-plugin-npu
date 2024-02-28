@@ -89,19 +89,38 @@ async def get_username(account_infomation: str = ArgPlainText()):
     if len(account) == 1:
         await nwpu.reject(f'请输入密码')
     elif len(account) == 2:
+        if account[-1] == "停止":
+            await nwpu.finish(f'此次登陆已终止')
         # securephone是手机验证码 secureemail是邮箱验证码
-        nwpu_query_class.login(account[0], account[1], "securephone")
-        await nwpu.reject(f'登陆中....请输入验证码')
+        await nwpu.send("正在登陆中...")
+        status =  nwpu_query_class.login(account[0], account[1], "securephone")
+        if status == 0:
+            await nwpu.reject(f'登陆中...请输入验证码')
+        elif status == -1:
+            account.pop()
+            await nwpu.reject(f'密码错误，请重新输入密码\n输入 停止 可以终止此次登陆\n多次连续四次密码错误会导致账号锁定，可以在锁定输停止进行重开')
+        else:
+            await nwpu.finish(f'出错了，接口发生改变,接口状态码{status}，此次登陆已终止')
+
     elif len(account) == 3:
+        if account[-1] == "停止":
+            await nwpu.finish(f'此次登陆已终止')
         await nwpu.send(f'正在输入验证码进行登陆')
-        nwpu_query_class.verification_code_login(account[2], folder_path)
-        await nwpu.send(f"正在获取全部成绩，请等待")
-        _, grades = nwpu_query_class.get_grades(folder_path)
-        pic_path = os.path.join(folder_path, 'grades.jpg')
-        generate_img_from_html(grades, folder_path)
-        await nwpu.send(MessageSegment.image(Path(pic_path)))
-        rank_msg, _ = nwpu_query_class.get_rank(folder_path)
-        await nwpu.send(rank_msg)
+        status = nwpu_query_class.verification_code_login(account[2], folder_path)
+        if status == 2:
+            await nwpu.send(f"正在获取全部成绩，请等待")
+            _, grades = nwpu_query_class.get_grades(folder_path)
+            pic_path = os.path.join(folder_path, 'grades.jpg')
+            generate_img_from_html(grades, folder_path)
+            await nwpu.send(MessageSegment.image(Path(pic_path)))
+            rank_msg, _ = nwpu_query_class.get_rank(folder_path)
+            await nwpu.finish(rank_msg)
+        elif status == 3:
+            account.pop()
+            await nwpu.reject(f'验证码错误，请重新输入验证码\n输入 停止 可以终止此次登陆')
+        else:
+            await nwpu.finish(f'出错了，返回状态码{status}，此次登陆已终止')
+            
 
 
 @scheduler.scheduled_job("cron", minute="*/15")
