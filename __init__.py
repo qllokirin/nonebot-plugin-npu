@@ -83,32 +83,60 @@ async def handel_function(matcher: Matcher, event: Event, args: Message = Comman
         logger.info("全新的账号正在登陆中")
 
 
-@nwpu.got("account_infomation", prompt="请输入账号")
-async def get_username(account_infomation: str = ArgPlainText()):
+@nwpu.got("account_infomation", prompt="请选择登陆方式\n1->账号密码手机验证码登录\n2->账号密码邮箱验证码登录\n3->扫码登录")
+async def get_username(event: Event, account_infomation: str = ArgPlainText()):
     account.append(account_infomation)
+    folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
     if len(account) == 1:
-        await nwpu.reject(f'请输入密码')
-    elif len(account) == 2:
+        if account[0] == "3":
+            account.append("")
+        elif account[0] == "1" or account[0] == "2":
+            await nwpu.reject(f'请输入账号')
+        else:
+            account.pop()
+            await nwpu.reject('回复错误，请重新回复')
+    if len(account) == 2:
+        if int(account[0]) == 1 or int(account[0]) == 2:
+            await nwpu.reject(f'请输入密码')
+        elif int(account[0]) == 3:
+            account.append("")
+        else:
+            await nwpu.finish(f'没有这个登陆方式，此次登陆已终止')
+    if len(account) == 3:
         if account[-1] == "停止":
             await nwpu.finish(f'此次登陆已终止')
-        # securephone是手机验证码 secureemail是邮箱验证码
-        await nwpu.send("正在登陆中...")
-        status =  nwpu_query_class.login(account[0], account[1], "securephone")
-        if status == 0:
+        if int(account[0]) == 1 or int(account[0]) == 2:
+            await nwpu.send("正在登陆中...")
+        elif int(account[0]) == 3:
+            await nwpu.send("正在发送二维码...")
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+        ways = ["securephone", "secureemail", "qr"]
+        status = nwpu_query_class.login(account[1], account[2], ways[int(account[0])-1], folder_path)
+        if status == "wating_to_scan_qr":
+            await nwpu.send(MessageSegment.image(Path(os.path.join(folder_path, 'qr.png'))))
+            if nwpu_query_class.wating_to_scan_qr(folder_path):
+                await nwpu.send(f'扫码登录成功')
+                account.append("")
+            else:
+                await nwpu.finish(f'扫码出错，时间超时过期or其他原因，此次登陆已终止')
+        elif status == 0:
             await nwpu.reject(f'登陆中...请输入验证码')
         elif status == -1:
             account.pop()
             await nwpu.reject(f'密码错误，请重新输入密码\n输入 停止 可以终止此次登陆\n多次连续四次密码错误会导致账号锁定，可以在锁定输停止进行重开')
         else:
-            await nwpu.finish(f'出错了，接口发生改变,接口状态码{status}，此次登陆已终止')
-
-    elif len(account) == 3:
+            await nwpu.finish(f'出错了，返回状态码{status}，此次登陆已终止')
+    if len(account) == 4:
         if account[-1] == "停止":
             await nwpu.finish(f'此次登陆已终止')
-        await nwpu.send(f'正在输入验证码进行登陆')
-        status = nwpu_query_class.verification_code_login(account[2], folder_path)
+        if int(account[0]) == 1 or int(account[0]) == 2:
+            await nwpu.send(f'正在输入验证码进行登陆')
+            status = nwpu_query_class.verification_code_login(account[3], folder_path)
+        elif int(account[0]) == 3:
+            status = 2
         if status == 2:
-            await nwpu.send(f"正在获取全部成绩，请等待")
+            await nwpu.send(f"正在获取全部成绩，请稍等")
             _, grades = nwpu_query_class.get_grades(folder_path)
             pic_path = os.path.join(folder_path, 'grades.jpg')
             generate_img_from_html(grades, folder_path)

@@ -28,6 +28,8 @@ class NwpuQuery():
         }
         self.headers2 = self.headers.copy()
         self.headers2['X-Requested-With'] = 'XMLHttpRequest'
+        self.headers3 = self.headers2.copy()
+        self.headers3['Content-Type'] = 'application/json; charset=UTF-8'
         self.session = requests.session()
 
     def use_recent_cookies_login(self, cookies_path):
@@ -46,7 +48,7 @@ class NwpuQuery():
         else:
             return False
 
-    def login(self, username, password, device):
+    def login(self, username, password, device, folder_path):
         URL = ("https://uis.nwpu.edu.cn/cas/login?service=https%3A%2F%2Fecampus.nwpu.edu.cn"
                "%2F%3Fpath%3Dhttps%3A%2F%2Fecampus.nwpu.edu.cn")
         self.device = device
@@ -65,27 +67,60 @@ class NwpuQuery():
         if len(response.history) == 0:
             #  没有重定向到主页，开始输入账号
             self.execution = re.search('name="execution" value="(.*?)"', response.text)
+            self.fpVisitorId = re.search('name="fpVisitorId" value="(.*?)"', response.text)
 
-            URL = 'https://uis.nwpu.edu.cn/cas/mfa/detect'
-            data = {
-                'username': self.username,
-                'password': self.password,
-            }
-            response = self.session.post(URL, data=data, headers=self.headers2)
-            self.state_code = json.loads(response.text)['data']['state']
+            if device == "securephone" or device == "secureemail":
+                URL = 'https://uis.nwpu.edu.cn/cas/mfa/detect'
+                data = {
+                    'username': self.username,
+                    'password': self.password,
+                }
+                response = self.session.post(URL, data=data, headers=self.headers2)
+                self.state_code = json.loads(response.text)['data']['state']
 
-            URL = f'https://uis.nwpu.edu.cn/cas/mfa/initByType/{device}?state={self.state_code}'
-            response = self.session.get(URL, headers=self.headers2)
-            if json.loads(response.text)['code'] != 0:
-                return json.loads(response.text)['code']
-            else:
-                gid = json.loads(response.text)['data']['gid']
-                URL = f'https://uis.nwpu.edu.cn/attest/api/guard/{device}/send'
-                self.data = {'gid': gid}
-                self.headers3 = self.headers2.copy()
-                self.headers3['Content-Type'] = 'application/json; charset=UTF-8'
-                self.session.post(URL, data=json.dumps(self.data), headers=self.headers3)
-                return 0
+                URL = f'https://uis.nwpu.edu.cn/cas/mfa/initByType/{device}?state={self.state_code}'
+                response = self.session.get(URL, headers=self.headers2)
+                if json.loads(response.text)['code'] != 0:
+                    return json.loads(response.text)['code']
+                else:
+                    gid = json.loads(response.text)['data']['gid']
+                    URL = f'https://uis.nwpu.edu.cn/attest/api/guard/{device}/send'
+                    self.data = {'gid': gid}
+                    self.session.post(URL, data=json.dumps(self.data), headers=self.headers3)
+                    return 0
+            elif device == "qr":
+                URL = 'https://uis.nwpu.edu.cn/cas/qr/init'
+                response = self.session.get(URL, headers=self.headers2)
+                self.state_key = json.loads(response.text)['data']['stateKey']
+                URL = f'https://uis.nwpu.edu.cn/cas/qr/qrcode?r={int(time.time_ns()/1000000)}'
+                response = self.session.get(URL, headers=self.headers)
+                with open(os.path.join(folder_path, 'qr.png'), 'wb') as f:
+                    f.write(response.content)
+                return "wating_to_scan_qr"
+
+    def wating_to_scan_qr(self,folder_path):
+        URL = 'https://uis.nwpu.edu.cn/cas/qr/comet'
+        while True:
+            time.sleep(1)
+            response = self.session.post(URL, headers=self.headers2)
+            code = json.loads(response.text)["code"]
+            if code == 1:
+                return False
+            status = int(json.loads(response.text)["data"]["qrCode"]["status"])
+            if status == 3:
+                URL = ("https://uis.nwpu.edu.cn/cas/login?service=https%3A%2F%2Fecampus.nwpu.edu.cn"
+                    "%2F%3Fpath%3Dhttps%3A%2F%2Fecampus.nwpu.edu.cn")
+                self.data = {
+                    'qrCodeKey': self.state_key,
+                    'currentMenu': '3',
+                    'geolocation': '',
+                    'fpVisitorId': self.fpVisitorId
+                }
+                self.session.post(URL, data=self.data, headers=self.headers)
+                cookies = json.dumps(self.session.cookies.get_dict())
+                with open((os.path.join(folder_path, 'cookies.txt')), 'w', encoding='utf-8') as f:
+                    f.write(cookies)
+                return True
 
     def verification_code_login(self, captcha, folder_path):
         URL = f'https://uis.nwpu.edu.cn/attest/api/guard/{self.device}/valid'
@@ -156,11 +191,16 @@ class NwpuQuery():
         return grades_msg, grades
 
     def get_rank(self, folder_path):
-        URL = 'https://jwxt.nwpu.edu.cn/student/sso-login'
-        self.session.get(URL, headers=self.headers)
-        URL = 'https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet'
-        response = self.session.get(URL, headers=self.headers)
-        self.student_assoc = re.search('semester-index/(.*)', response.url).group(1)
+        while True:
+            URL = 'https://jwxt.nwpu.edu.cn/student/sso-login'
+            self.session.get(URL, headers=self.headers)
+            URL = 'https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet'
+            response = self.session.get(URL, headers=self.headers)
+            match = re.search('semester-index/(.*)', response.url)
+            if match:
+                self.student_assoc = match.group(1)
+                break
+            # 偶尔会出现 目前怀疑为页面没有加载完全 故多次运行
         URL = 'https://jwxt.nwpu.edu.cn/student/for-std/student-portrait'
         self.session.get(URL, headers=self.headers)
         URL = f'https://jwxt.nwpu.edu.cn/student/for-std/student-portrait/getMyGrades?studentAssoc={self.student_assoc}&semesterAssoc='
