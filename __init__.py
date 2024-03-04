@@ -10,6 +10,7 @@ from pathlib import Path
 from nonebot.adapters import Message
 from nonebot.params import CommandArg
 from nonebot import require
+from nonebot.utils import run_sync
 
 require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
@@ -148,11 +149,9 @@ async def get_username(event: Event, account_infomation: str = ArgPlainText()):
             await nwpu.reject(f'验证码错误，请重新输入验证码\n输入 停止 可以终止此次登陆')
         else:
             await nwpu.finish(f'出错了，返回状态码{status}，此次登陆已终止')
-            
 
-
-@scheduler.scheduled_job("cron", minute="*/15")
-async def run_every_10_minutes_check_rank():
+@run_sync
+def get_grades_and_ranks():
     # 获取全部已登陆的QQ号
     qq_all = []
     data_folder_path = os.path.join(os.path.dirname(__file__), 'data')
@@ -165,6 +164,9 @@ async def run_every_10_minutes_check_rank():
     else:
         logger.info("没有data文件夹")
     # qq_all = [] # 若不想给所有的人都推送，硬编码改一下值即可 str类型
+
+    grades_change = []
+    ranks_change = []
 
     for qq in qq_all:
         folder_path = os.path.join(os.path.dirname(__file__), 'data', qq)
@@ -179,11 +181,9 @@ async def run_every_10_minutes_check_rank():
             _, grades = nwpu_query_class_sched.get_grades(folder_path)
             new_grades = [grade for grade in grades if grade not in grades_old]
             if new_grades:
-                bot: Bot = get_bot()
                 pic_path = os.path.join(folder_path, 'grades.jpg')
                 generate_img_from_html(new_grades, folder_path)
-                await bot.send_private_msg(user_id=int(qq), message=f"出新成绩啦")
-                await bot.send_private_msg(user_id=int(qq), message=MessageSegment.image(Path(pic_path)))
+                grades_change.append([qq, pic_path])
             else:
                 logger.info(f"{qq}的grades没变，没出新成绩")
 
@@ -192,11 +192,22 @@ async def run_every_10_minutes_check_rank():
                 rank_old = f.read()
             rank_msg, rank = nwpu_query_class_sched.get_rank(folder_path)
             if str(rank_old) != str(rank):
-                bot: Bot = get_bot()
-                await bot.send_private_msg(user_id=int(qq),
-                                           message=f"你的rank发生了变化,{rank_old}->{rank}\n{rank_msg}")
+                ranks_change.append([qq, rank_old, rank, rank_msg])
             else:
                 logger.info(f"{qq}的rank没变，是{rank}")
         else:
             logger.error(f"{qq}的cookies失效了")
         del nwpu_query_class_sched
+    return grades_change, ranks_change
+
+@scheduler.scheduled_job("cron", minute="*/15")
+async def every_15_minutes_check():
+    grades_change, ranks_change = await get_grades_and_ranks()
+    for qq, pic_path in grades_change:
+        bot: Bot = get_bot()
+        await bot.send_private_msg(user_id=int(qq), message=f"出新成绩啦")
+        await bot.send_private_msg(user_id=int(qq), message=MessageSegment.image(Path(pic_path)))
+    for qq, rank_old, rank, rank_msg in ranks_change:
+        bot: Bot = get_bot()
+        await bot.send_private_msg(user_id=int(qq),
+                                   message=f"你的rank发生了变化,{rank_old}->{rank}\n{rank_msg}")
