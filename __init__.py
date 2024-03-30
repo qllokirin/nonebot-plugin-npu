@@ -20,6 +20,7 @@ import shutil
 from .nwpu_query import NwpuQuery
 import json
 from .utils import generate_img_from_html
+from .nwpu_electric import get_campaus,get_building,get_room,get_electric_left
 
 __plugin_meta__ = PluginMetadata(
     name="nonebot-plugin-npu",
@@ -200,7 +201,7 @@ def get_grades_and_ranks():
         del nwpu_query_class_sched
     return grades_change, ranks_change
 
-@scheduler.scheduled_job("cron", minute="*/15")
+@scheduler.scheduled_job("cron", minute="*/15",id="job_0")
 async def every_15_minutes_check():
     grades_change, ranks_change = await get_grades_and_ranks()
     for qq, pic_path in grades_change:
@@ -211,3 +212,101 @@ async def every_15_minutes_check():
         bot: Bot = get_bot()
         await bot.send_private_msg(user_id=int(qq),
                                    message=f"你的rank发生了变化,{rank_old}->{rank}\n{rank_msg}")
+
+
+nwpu_electric = on_command("翱翔电费", rule=to_me(), priority=10, block=True)
+
+electric_msg = []
+campaus_all = None
+@nwpu_electric.handle()
+async def handel_function(matcher: Matcher, event: Event, args: Message = CommandArg()):
+    global campaus_all
+    global electric_msg
+    folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+    electric_msg = []
+    if msg := args.extract_plain_text():
+        if msg == "查询":
+            folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
+            electric_path = os.path.join(folder_path, 'electric.json')
+            if os.path.exists(electric_path):
+                with open(electric_path, 'r', encoding='utf-8') as f:
+                    electric_information = json.loads(f.read())
+                electric_left = get_electric_left(electric_information['campaus'],electric_information['building'],electric_information['room'])
+                await nwpu_electric.finish(f'电费剩余{electric_left}')
+            else:
+                await nwpu_electric.finish(f'暂未绑定宿舍\n请输入/翱翔电费 或 /翱翔电费绑定 进行绑定 \n或者/翱翔电费查询 进行电费查询')
+        elif msg == "绑定":
+            logger.info("绑定新的宿舍")
+            msg,campaus_all = get_campaus()
+            await nwpu_electric.send(msg)
+        else:
+            await nwpu_electric.finish("请输入/翱翔电费 或 /翱翔电费绑定 进行绑定 \n或者/翱翔电费查询 进行电费查询")
+    else:
+        logger.info("绑定新的宿舍")
+        msg,campaus_all = get_campaus()
+        await nwpu_electric.send(msg)
+        
+building_all = None
+room_all = None
+@nwpu_electric.got("electric_information", prompt="请选择校区")
+async def get_electric_information(event: Event, electric_information: str = ArgPlainText()):
+    global building_all
+    global room_all
+    electric_msg.append(electric_information)
+    folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
+    if len(electric_msg) == 1:
+        electric_msg[0] = campaus_all[int(electric_msg[0])]['value']
+        msg_list,building_all = get_building(electric_msg[0])
+        for msg in msg_list:
+            await nwpu_electric.send(msg)
+        await nwpu_electric.reject()
+    elif len(electric_msg) == 2:
+        electric_msg[1] = building_all[int(electric_msg[1])]['value']
+        msg_list,room_all = get_room(electric_msg[0],electric_msg[1])
+        for msg in msg_list:
+            await nwpu_electric.send(msg)
+        await nwpu_electric.reject()
+    elif len(electric_msg) == 3:
+        electric_msg[2] = room_all[int(electric_msg[2])]['value']
+        data = {'campaus':electric_msg[0],'building':electric_msg[1],'room':electric_msg[2]}
+        electric_left = get_electric_left(electric_msg[0],electric_msg[1],electric_msg[2])
+        with open(os.path.join(folder_path, 'electric.json'), 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=4, ensure_ascii=False, )
+        await nwpu_electric.send(f'当前剩余电量：{electric_left}')
+        await nwpu_electric.finish("每天会自动定时查询，电费小于25时会自动提示充值")
+
+@run_sync
+def get_nwpu_electric():
+    logger.info('检查宿舍电费')
+    qq_all = []
+    data_folder_path = os.path.join(os.path.dirname(__file__), 'data')
+    if os.path.exists(data_folder_path):
+        qq_all = [f for f in os.listdir(data_folder_path) if os.path.exists(os.path.join(data_folder_path, f, 'electric.json'))]
+        if qq_all:
+            logger.info(f"已绑定宿舍的全部QQ号：{qq_all}")
+        else:
+            logger.info("没有账号绑定")
+    else:
+        logger.info("没有data文件夹")
+    
+    electric_all = []
+    for qq in qq_all:
+        folder_path = os.path.join(os.path.dirname(__file__), 'data', qq)
+        electric_path = os.path.join(folder_path, 'electric.json')
+        with open(electric_path, 'r', encoding='utf-8') as f:
+            electric_information = json.loads(f.read())
+        electric_left = get_electric_left(electric_information['campaus'],electric_information['building'],electric_information['room'])
+        logger.info(f'{qq}电费还剩{electric_left}')
+        if electric_left < 25:
+            electric_all.append([qq,electric_left])
+    return electric_all
+
+@scheduler.scheduled_job("cron", hour="12", id="job_1")
+async def every_15_20_check():
+    electric_all = await get_nwpu_electric()
+    for qq,electric_left in electric_all:
+        bot: Bot = get_bot()
+        await bot.send_private_msg(user_id=int(qq), message=f"电费不足25，当前电费{electric_left}，请及时缴纳")
+    
