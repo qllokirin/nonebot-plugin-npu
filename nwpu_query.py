@@ -5,7 +5,8 @@ import os
 import smtplib
 from email.mime.text import MIMEText
 import requests
-
+import rsa
+import base64
 
 class NwpuQuery():
     def __init__(self):
@@ -53,6 +54,13 @@ class NwpuQuery():
                "%2F%3Fpath%3Dhttps%3A%2F%2Fecampus.nwpu.edu.cn")
         self.device = device
         self.username = username
+
+        # RSA加密password
+        URL_key = 'https://uis.nwpu.edu.cn/cas/jwt/publicKey'
+        public_key = self.session.get(URL_key, headers=self.headers2).text
+        public_key = rsa.PublicKey.load_pkcs1_openssl_pem(public_key.encode())
+        password = rsa.encrypt(password.encode(), public_key)
+        password = "__RSA__" + base64.b64encode(password).decode()
         self.password = password
 
         response = self.session.get(URL, headers=self.headers)
