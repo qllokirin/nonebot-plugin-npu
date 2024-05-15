@@ -85,7 +85,7 @@ async def handel_function(matcher: Matcher, event: Event, args: Message = Comman
         logger.info("全新的账号正在登陆中")
 
 
-@nwpu.got("account_infomation", prompt="请选择登陆方式\n1->账号密码手机验证码登录\n2->账号密码邮箱验证码登录\n3->扫码登录")
+@nwpu.got("account_infomation", prompt="请选择登陆方式\n1->账号密码手机验证码登录\n2->账号密码邮箱验证码登录\n3->扫码登录\n登录成功后会自动检测是否有新成绩，但若选择扫码登录，一天后登陆凭证会失效，无法长期监测新成绩")
 async def get_username(event: Event, account_infomation: str = ArgPlainText()):
     account.append(account_infomation)
     folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
