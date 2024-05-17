@@ -7,6 +7,7 @@ from email.mime.text import MIMEText
 import requests
 import rsa
 import base64
+from bs4 import BeautifulSoup
 
 class NwpuQuery():
     def __init__(self):
@@ -221,3 +222,44 @@ class NwpuQuery():
         with open((os.path.join(folder_path, 'rank.txt')), 'w', encoding='utf-8') as f:
             f.write(str(rank))
         return rank_msg, rank
+
+    # 查询考试信息
+    def get_exams(self, folder_path, is_finished_show=False):
+        URL = 'https://jwxt.nwpu.edu.cn/student/sso-login'
+        self.session.get(URL, headers=self.headers)
+        URL = 'https://jwxt.nwpu.edu.cn/student/for-std/exam-arrange'
+        response = self.session.get(URL, headers=self.headers)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        rows = soup.find_all('tr')
+        exams = []
+        exams_msg = ""
+        for row in rows:
+            if row.has_attr('data-finished'):
+                # 是否结束
+                finished = row['data-finished']
+                if (not is_finished_show and finished == 'false') or is_finished_show:
+                    # 时间
+                    time = row.find_all('div', class_='time')[0].text
+                    # 地点
+                    location = ', '.join([span.text for span in row.find('td').find_all('span')])
+                    # 课程
+                    course = row.find_all('td')[1].find('span').text
+                    # 状态
+                    status = row.find_all('td')[2].text.strip()
+
+                    exam = {
+                        "if_finished": finished,
+                        "time": time,
+                        "location": location,
+                        "course": course,
+                        "status": status
+                    }
+                    exams.append(exam)
+
+                    exams_msg +="名称："+course+"\n"
+                    exams_msg +="地点："+location+"\n"
+                    exams_msg +="时间："+time+"\n\n"
+        exams_msg = exams_msg[:-2]
+        with open(os.path.join(folder_path, 'exams.json'), 'w', encoding='utf-8') as f:
+            json.dump(exams, f, indent=4, ensure_ascii=False, )
+        return exams_msg, exams

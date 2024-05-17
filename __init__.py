@@ -72,11 +72,18 @@ async def handel_function(matcher: Matcher, event: Event, args: Message = Comman
                 elif msg == "排名":
                     rank_msg, _ = nwpu_query_class.get_rank(folder_path)
                     await nwpu.finish(rank_msg)
+                elif msg == "排考" or msg == "考试" or msg == "排考信息" or msg == "考试信息":
+                    await nwpu.send(f"正在考试信息，请等待")
+                    exams_msg, _ = nwpu_query_class.get_exams(folder_path, False)
+                    print(exams_msg)
+                    await nwpu.finish("你的考试有：\n\n"+exams_msg)
+                elif msg == "全部排考" or msg == "全部考试" or msg == "全部排考信息" or msg == "全部考试信息":
+                    await nwpu.send(f"正在全部考试信息，请等待")
+                    exams_msg, _ = nwpu_query_class.get_exams(folder_path, True)
+                    await nwpu.finish("你的全部考试有：\n\n"+exams_msg)
                 else:
                     await nwpu.finish("那是什么 我不知道\n"
-                                      "可选指令：\n"
-                                      "/翱翔成绩 or /翱翔排名\n"
-                                      "/翱翔全部成绩")
+                                      "发送 help 可获取全部指令")
             else:
                 await nwpu.finish("登陆失败 cookie过期，请输入 /翱翔 进行登陆")
         else:
@@ -152,7 +159,7 @@ async def get_username(event: Event, account_infomation: str = ArgPlainText()):
             await nwpu.finish(f'出错了，返回状态码{status}，此次登陆已终止')
 
 @run_sync
-def get_grades_and_ranks():
+def get_grades_and_ranks_and_exams():
     # 获取全部已登陆的QQ号
     qq_all = []
     data_folder_path = os.path.join(os.path.dirname(__file__), 'data')
@@ -168,6 +175,7 @@ def get_grades_and_ranks():
 
     grades_change = []
     ranks_change = []
+    exams_change = []
 
     for qq in qq_all:
         folder_path = os.path.join(os.path.dirname(__file__), 'data', qq)
@@ -176,7 +184,7 @@ def get_grades_and_ranks():
         # 登陆
         if nwpu_query_class_sched.use_recent_cookies_login(cookies_path):
             # 先检测成绩变化
-            logger.info(f"正在{qq}的检测成绩")
+            logger.info(f"正在检测{qq}的成绩")
             with open((os.path.join(folder_path, 'grades.json')), 'r', encoding='utf-8') as f:
                 grades_old = json.loads(f.read())
             _, grades = nwpu_query_class_sched.get_grades(folder_path)
@@ -189,6 +197,7 @@ def get_grades_and_ranks():
                 logger.info(f"{qq}的grades没变，没出新成绩")
 
             # 检测rank的变化
+            logger.info(f"正在检测{qq}的排名")
             with open((os.path.join(folder_path, 'rank.txt')), 'r', encoding='utf-8') as f:
                 rank_old = f.read()
             rank_msg, rank = nwpu_query_class_sched.get_rank(folder_path)
@@ -196,14 +205,25 @@ def get_grades_and_ranks():
                 ranks_change.append([qq, rank_old, rank, rank_msg])
             else:
                 logger.info(f"{qq}的rank没变，是{rank}")
+            
+            # 检测考试变化
+            logger.info(f"正在检测{qq}的考试信息")
+            with open((os.path.join(folder_path, 'exams.json')), 'r', encoding='utf-8') as f:
+                exams_old = json.loads(f.read())
+            exams_msg, exams = nwpu_query_class_sched.get_exams(folder_path)
+            new_exams = [exam for exam in exams if exam not in exams_old]
+            if new_exams:
+                exams_change.append([qq, new_exams, exams_msg])
+            else:
+                logger.info(f"{qq}的exams没变，没出新考试")
         else:
             logger.error(f"{qq}的cookies失效了")
         del nwpu_query_class_sched
-    return grades_change, ranks_change
+    return grades_change, ranks_change, exams_change
 
 @scheduler.scheduled_job("cron", minute="*/15",id="job_0")
 async def every_15_minutes_check():
-    grades_change, ranks_change = await get_grades_and_ranks()
+    grades_change, ranks_change, exams_change = await get_grades_and_ranks_and_exams()
     for qq, pic_path in grades_change:
         bot: Bot = get_bot()
         await bot.send_private_msg(user_id=int(qq), message=f"出新成绩啦")
@@ -212,7 +232,17 @@ async def every_15_minutes_check():
         bot: Bot = get_bot()
         await bot.send_private_msg(user_id=int(qq),
                                    message=f"你的rank发生了变化,{rank_old}->{rank}\n{rank_msg}")
-
+    for qq, new_exams, exams_msg in exams_change:
+        new_courses = [new_exam['course'] for new_exam in new_exams]
+        new_course_msg = ""
+        for new_course in new_courses:
+            new_course_msg += new_course + "\n"
+        new_course_msg = new_course_msg[:-1]
+        bot: Bot = get_bot()
+        await bot.send_private_msg(user_id=int(qq),
+                                   message=f"你有新的考试有：\n\n"+new_course_msg)
+        await bot.send_private_msg(user_id=int(qq),
+                                   message=f"你的全部未结束考试有：\n"+exams_msg)
 
 nwpu_electric = on_command("翱翔电费", rule=to_me(), priority=10, block=True)
 
