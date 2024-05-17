@@ -73,12 +73,12 @@ async def handel_function(matcher: Matcher, event: Event, args: Message = Comman
                     rank_msg, _ = nwpu_query_class.get_rank(folder_path)
                     await nwpu.finish(rank_msg)
                 elif msg == "排考" or msg == "考试" or msg == "排考信息" or msg == "考试信息":
-                    await nwpu.send(f"正在考试信息，请等待")
+                    await nwpu.send(f"正在获取考试信息，请等待")
                     exams_msg, _ = nwpu_query_class.get_exams(folder_path, False)
                     print(exams_msg)
                     await nwpu.finish("你的考试有：\n\n"+exams_msg)
                 elif msg == "全部排考" or msg == "全部考试" or msg == "全部排考信息" or msg == "全部考试信息":
-                    await nwpu.send(f"正在全部考试信息，请等待")
+                    await nwpu.send(f"正在获取全部考试信息，请等待")
                     exams_msg, _ = nwpu_query_class.get_exams(folder_path, True)
                     await nwpu.finish("你的全部考试有：\n\n"+exams_msg)
                 else:
