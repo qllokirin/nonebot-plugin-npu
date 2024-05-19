@@ -151,7 +151,9 @@ async def get_username(event: Event, account_infomation: str = ArgPlainText()):
             generate_img_from_html(grades, folder_path)
             await nwpu.send(MessageSegment.image(Path(pic_path)))
             rank_msg, _ = nwpu_query_class.get_rank(folder_path)
-            await nwpu.finish(rank_msg)
+            await nwpu.send(rank_msg)
+            exams_msg, _ = nwpu_query_class.get_exams(folder_path)
+            await nwpu.finish(exams_msg)
         elif status == 3:
             account.pop()
             await nwpu.reject(f'验证码错误，请重新输入验证码\n输入 停止 可以终止此次登陆')
@@ -185,37 +187,46 @@ def get_grades_and_ranks_and_exams():
         if nwpu_query_class_sched.use_recent_cookies_login(cookies_path):
             # 先检测成绩变化
             logger.info(f"正在检测{qq}的成绩")
-            with open((os.path.join(folder_path, 'grades.json')), 'r', encoding='utf-8') as f:
-                grades_old = json.loads(f.read())
-            _, grades = nwpu_query_class_sched.get_grades(folder_path)
-            new_grades = [grade for grade in grades if grade not in grades_old]
-            if new_grades:
-                pic_path = os.path.join(folder_path, 'grades.jpg')
-                generate_img_from_html(new_grades, folder_path)
-                grades_change.append([qq, pic_path])
+            if os.path.exists(os.path.join(folder_path, 'grades.json')):
+                with open((os.path.join(folder_path, 'grades.json')), 'r', encoding='utf-8') as f:
+                    grades_old = json.loads(f.read())
+                _, grades = nwpu_query_class_sched.get_grades(folder_path)
+                new_grades = [grade for grade in grades if grade not in grades_old]
+                if new_grades:
+                    pic_path = os.path.join(folder_path, 'grades.jpg')
+                    generate_img_from_html(new_grades, folder_path)
+                    grades_change.append([qq, pic_path])
+                else:
+                    logger.info(f"{qq}的grades没变，没出新成绩")
             else:
-                logger.info(f"{qq}的grades没变，没出新成绩")
+                nwpu_query_class_sched.get_grades(folder_path)
 
             # 检测rank的变化
             logger.info(f"正在检测{qq}的排名")
-            with open((os.path.join(folder_path, 'rank.txt')), 'r', encoding='utf-8') as f:
-                rank_old = f.read()
-            rank_msg, rank = nwpu_query_class_sched.get_rank(folder_path)
-            if str(rank_old) != str(rank):
-                ranks_change.append([qq, rank_old, rank, rank_msg])
+            if os.path.exists(os.path.join(folder_path, 'rank.txt')):
+                with open((os.path.join(folder_path, 'rank.txt')), 'r', encoding='utf-8') as f:
+                    rank_old = f.read()
+                rank_msg, rank = nwpu_query_class_sched.get_rank(folder_path)
+                if str(rank_old) != str(rank):
+                    ranks_change.append([qq, rank_old, rank, rank_msg])
+                else:
+                    logger.info(f"{qq}的rank没变，是{rank}")
             else:
-                logger.info(f"{qq}的rank没变，是{rank}")
+                nwpu_query_class_sched.get_rank(folder_path)
             
             # 检测考试变化
             logger.info(f"正在检测{qq}的考试信息")
-            with open((os.path.join(folder_path, 'exams.json')), 'r', encoding='utf-8') as f:
-                exams_old = json.loads(f.read())
-            exams_msg, exams = nwpu_query_class_sched.get_exams(folder_path)
-            new_exams = [exam for exam in exams if exam not in exams_old]
-            if new_exams:
-                exams_change.append([qq, new_exams, exams_msg])
+            if os.path.exists(os.path.join(folder_path, 'exams.json')):
+                with open((os.path.join(folder_path, 'exams.json')), 'r', encoding='utf-8') as f:
+                    exams_old = json.loads(f.read())
+                exams_msg, exams = nwpu_query_class_sched.get_exams(folder_path)
+                new_exams = [exam for exam in exams if exam not in exams_old]
+                if new_exams:
+                    exams_change.append([qq, new_exams, exams_msg])
+                else:
+                    logger.info(f"{qq}的exams没变，没出新考试")
             else:
-                logger.info(f"{qq}的exams没变，没出新考试")
+                nwpu_query_class_sched.get_exams(folder_path)
         else:
             logger.error(f"{qq}的cookies失效了")
         del nwpu_query_class_sched
