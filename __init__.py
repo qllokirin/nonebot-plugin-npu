@@ -237,8 +237,7 @@ async def every_15_minutes_check():
     grades_change, ranks_change, exams_change = await get_grades_and_ranks_and_exams()
     for qq, pic_path in grades_change:
         bot: Bot = get_bot()
-        await bot.send_private_msg(user_id=int(qq), message=f"出新成绩啦")
-        await bot.send_private_msg(user_id=int(qq), message=MessageSegment.image(Path(pic_path)))
+        await bot.send_private_msg(user_id=int(qq), message = "出新成绩啦" + MessageSegment.image(Path(pic_path)))
     for qq, rank_old, rank, rank_msg in ranks_change:
         bot: Bot = get_bot()
         await bot.send_private_msg(user_id=int(qq),
