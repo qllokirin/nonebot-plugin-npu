@@ -19,6 +19,7 @@ import os
 import shutil
 from .nwpu_query import NwpuQuery
 import json
+import asyncio
 from .utils import generate_img_from_html
 from .nwpu_electric import get_campaus,get_building,get_room,get_electric_left
 
@@ -196,6 +197,7 @@ def get_grades_and_ranks_and_exams():
                     pic_path = os.path.join(folder_path, 'grades.jpg')
                     generate_img_from_html(new_grades, folder_path)
                     grades_change.append([qq, pic_path])
+                    logger.info(f"{qq}出新成绩啦")
                 else:
                     logger.info(f"{qq}的grades没变，没出新成绩")
             else:
@@ -209,6 +211,7 @@ def get_grades_and_ranks_and_exams():
                 rank_msg, rank = nwpu_query_class_sched.get_rank(folder_path)
                 if str(rank_old) != str(rank):
                     ranks_change.append([qq, rank_old, rank, rank_msg])
+                    logger.info(f"{qq}的rank变化啦")
                 else:
                     logger.info(f"{qq}的rank没变，是{rank}")
             else:
@@ -223,6 +226,7 @@ def get_grades_and_ranks_and_exams():
                 new_exams = [exam for exam in exams if exam not in exams_old]
                 if new_exams:
                     exams_change.append([qq, new_exams, exams_msg])
+                    logger.info(f"{qq}出新考试啦")
                 else:
                     logger.info(f"{qq}的exams没变，没出新考试")
             else:
@@ -238,10 +242,12 @@ async def every_15_minutes_check():
     for qq, pic_path in grades_change:
         bot: Bot = get_bot()
         await bot.send_private_msg(user_id=int(qq), message = "出新成绩啦" + MessageSegment.image(Path(pic_path)))
+        await asyncio.sleep(2)
     for qq, rank_old, rank, rank_msg in ranks_change:
         bot: Bot = get_bot()
         await bot.send_private_msg(user_id=int(qq),
                                    message=f"你的rank发生了变化,{rank_old}->{rank}\n{rank_msg}")
+        await asyncio.sleep(2)
     for qq, new_exams, exams_msg in exams_change:
         new_courses = [new_exam['course'] for new_exam in new_exams]
         new_course_msg = ""
@@ -250,9 +256,11 @@ async def every_15_minutes_check():
         new_course_msg = new_course_msg[:-1]
         bot: Bot = get_bot()
         await bot.send_private_msg(user_id=int(qq),
-                                   message=f"你有新的考试有：\n\n"+new_course_msg)
+                                   message=f"你有新的考试有：\n"+new_course_msg)
+        await asyncio.sleep(2)
         await bot.send_private_msg(user_id=int(qq),
                                    message=f"你的全部未结束考试有：\n"+exams_msg)
+        await asyncio.sleep(2)
 
 nwpu_electric = on_command("翱翔电费", rule=to_me(), priority=10, block=True)
 
@@ -349,4 +357,5 @@ async def every_15_20_check():
     for qq,electric_left in electric_all:
         bot: Bot = get_bot()
         await bot.send_private_msg(user_id=int(qq), message=f"电费不足25，当前电费{electric_left}，请及时缴纳")
+        await asyncio.sleep(2)
     
