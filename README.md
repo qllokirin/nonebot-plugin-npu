@@ -28,8 +28,8 @@ git clone https://github.com/qllokirin/nonebot-plugin-npu.git ./{你的插件目
 * 2.安装
 
   ```
-  pip install requests
-  nb plugin install nonebot_plugin_apscheduler
+  pip install requests imgkit==1.0.2 paho-mqtt==1.6.1 bs4 rsa
+  pip install nonebot_plugin_gocqhttp nonebot_plugin_apscheduler
   ```
 
 * 3.安装wkhtmltopdf
@@ -93,7 +93,6 @@ SUPERUSER=["123456"] # QQ账号 超级用户
 安装插件
 
 ```
-nb plugin install nonebot_plugin_gocqhttp
 # 再次启动后打开 http://127.0.0.1:22330/go-cqhttp/ 进行登陆QQ号
 nb run
 ```
