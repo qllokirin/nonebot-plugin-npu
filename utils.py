@@ -1,6 +1,6 @@
 import imgkit
 import os
-
+import json
 
 # Function to generate HTML table from data
 def generate_html_table(data):
@@ -82,3 +82,14 @@ def generate_grades_to_msg(gardes):
             grades_msg += "├──" + detail + "\n"
         grades_msg += "└──" + garde["grade_detail"][-1] + "\n\n"
     return grades_msg[:-2]
+
+def get_exams_msg(folder_path):
+    with open((os.path.join(folder_path, 'exams.json')), 'r', encoding='utf-8') as f:
+        exams = json.loads(f.read())
+    exams_msg = ""
+    for exam in exams:
+        exams_msg += "名称：" + exam["course"] +"\n"
+        exams_msg += "地点：" + exam["location"] +"\n"
+        exams_msg += "时间：" + exam["time"] +"\n\n"
+    exams_msg = exams_msg[:-2]
+    return exams_msg

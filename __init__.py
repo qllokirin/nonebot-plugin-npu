@@ -22,6 +22,7 @@ import json
 import asyncio
 from .utils import generate_img_from_html
 from .utils import generate_grades_to_msg
+from .utils import get_exams_msg
 from .nwpu_electric import get_campaus,get_building,get_room,get_electric_left
 
 __plugin_meta__ = PluginMetadata(
@@ -54,46 +55,41 @@ async def handel_function(matcher: Matcher, event: Event, args: Message = Comman
     if msg := args.extract_plain_text():
         cookies_path = os.path.join(folder_path, 'cookies.txt')
         if os.path.isfile(cookies_path):
-            await nwpu.send("正在登入翱翔门户")
-            if nwpu_query_class.use_recent_cookies_login(cookies_path):
-                if msg == "成绩":
-                    sem_query_num = 1
-                    await nwpu.send(f"正在获取最近一学期的成绩，请稍等")
-                    _, grades = nwpu_query_class.get_grades(folder_path, sem_query_num)
-                    pic_path = os.path.join(folder_path, 'grades.jpg')
-                    generate_img_from_html(grades, folder_path)
-                    await nwpu.send(MessageSegment.image(Path(pic_path)))
-                    rank_msg, _ = nwpu_query_class.get_rank(folder_path)
-                    await nwpu.finish(rank_msg)
-                elif msg == "全部成绩":
-                    await nwpu.send(f"正在获取全部成绩，请等待")
-                    _, grades = nwpu_query_class.get_grades(folder_path)
-                    pic_path = os.path.join(folder_path, 'grades.jpg')
-                    generate_img_from_html(grades, folder_path)
-                    await nwpu.finish(MessageSegment.image(Path(pic_path)))
-                elif msg == "排名":
-                    rank_msg, _ = nwpu_query_class.get_rank(folder_path)
-                    await nwpu.finish(rank_msg)
-                elif msg == "排考" or msg == "考试" or msg == "排考信息" or msg == "考试信息":
-                    await nwpu.send(f"正在获取考试信息，请等待")
-                    exams_msg, _ = nwpu_query_class.get_exams(folder_path, False)
-                    print(exams_msg)
-                    if exams_msg:
-                        await nwpu.finish("你的考试有：\n"+exams_msg)
-                    else:
-                        await nwpu.finish("暂无考试")
-                elif msg == "全部排考" or msg == "全部考试" or msg == "全部排考信息" or msg == "全部考试信息":
-                    await nwpu.send(f"正在获取全部考试信息，请等待")
-                    exams_msg, _ = nwpu_query_class.get_exams(folder_path, True)
-                    if exams_msg:
-                        await nwpu.finish("你的全部考试有：\n"+exams_msg)
-                    else:
-                        await nwpu.finish("暂无考试")
-                else:
-                    await nwpu.finish("那是什么 我不知道\n"
-                                      "发送 help 可获取全部指令")
+            if msg == "排考" or msg == "考试" or msg == "排考信息" or msg == "考试信息":
+                await nwpu.finish("你的考试有：\n"+ get_exams_msg(folder_path))
             else:
-                await nwpu.finish("登陆失败 cookie过期，请输入 /翱翔 进行登陆")
+                await nwpu.send("正在登入翱翔门户")
+                if nwpu_query_class.use_recent_cookies_login(cookies_path):
+                    if msg == "成绩":
+                        sem_query_num = 1
+                        await nwpu.send(f"正在获取最近一学期的成绩，请稍等")
+                        _, grades = nwpu_query_class.get_grades(folder_path, sem_query_num)
+                        pic_path = os.path.join(folder_path, 'grades.jpg')
+                        generate_img_from_html(grades, folder_path)
+                        await nwpu.send(MessageSegment.image(Path(pic_path)))
+                        rank_msg, _ = nwpu_query_class.get_rank(folder_path)
+                        await nwpu.finish(rank_msg)
+                    elif msg == "全部成绩":
+                        await nwpu.send(f"正在获取全部成绩，请等待")
+                        _, grades = nwpu_query_class.get_grades(folder_path)
+                        pic_path = os.path.join(folder_path, 'grades.jpg')
+                        generate_img_from_html(grades, folder_path)
+                        await nwpu.finish(MessageSegment.image(Path(pic_path)))
+                    elif msg == "排名":
+                        rank_msg, _ = nwpu_query_class.get_rank(folder_path)
+                        await nwpu.finish(rank_msg)
+                    elif msg == "全部排考" or msg == "全部考试" or msg == "全部排考信息" or msg == "全部考试信息":
+                        await nwpu.send(f"正在获取全部考试信息，请等待")
+                        exams_msg, _ = nwpu_query_class.get_exams(folder_path, True)
+                        if exams_msg:
+                            await nwpu.finish("你的全部考试有：\n"+exams_msg)
+                        else:
+                            await nwpu.finish("暂无考试")
+                    else:
+                        await nwpu.finish("那是什么 我不知道\n"
+                                        "发送 help 可获取全部指令")
+                else:
+                    await nwpu.finish("登陆失败 cookie过期，请输入 /翱翔 进行登陆")
         else:
             await nwpu.finish("你还没有登陆过，请输入 /翱翔 进行登陆")
     else:
