@@ -78,11 +78,17 @@ async def handel_function(matcher: Matcher, event: Event, args: Message = Comman
                     await nwpu.send(f"正在获取考试信息，请等待")
                     exams_msg, _ = nwpu_query_class.get_exams(folder_path, False)
                     print(exams_msg)
-                    await nwpu.finish("你的考试有：\n"+exams_msg)
+                    if exams_msg:
+                        await nwpu.finish("你的考试有：\n"+exams_msg)
+                    else:
+                        await nwpu.finish("暂无考试")
                 elif msg == "全部排考" or msg == "全部考试" or msg == "全部排考信息" or msg == "全部考试信息":
                     await nwpu.send(f"正在获取全部考试信息，请等待")
                     exams_msg, _ = nwpu_query_class.get_exams(folder_path, True)
-                    await nwpu.finish("你的全部考试有：\n"+exams_msg)
+                    if exams_msg:
+                        await nwpu.finish("你的全部考试有：\n"+exams_msg)
+                    else:
+                        await nwpu.finish("暂无考试")
                 else:
                     await nwpu.finish("那是什么 我不知道\n"
                                       "发送 help 可获取全部指令")
@@ -155,7 +161,10 @@ async def get_username(event: Event, account_infomation: str = ArgPlainText()):
             rank_msg, _ = nwpu_query_class.get_rank(folder_path)
             await nwpu.send(rank_msg)
             exams_msg, _ = nwpu_query_class.get_exams(folder_path)
-            await nwpu.finish(exams_msg)
+            if exams_msg:
+                await nwpu.finish("你的考试有：\n"+exams_msg)
+            else:
+                await nwpu.finish("暂无考试")
         elif status == 3:
             account.pop()
             await nwpu.reject(f'验证码错误，请重新输入验证码\n输入 停止 可以终止此次登陆')
