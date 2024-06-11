@@ -68,3 +68,17 @@ def generate_img_from_html(data, grades_folder_path):
 
     imgkit.from_file(os.path.join(grades_folder_path, "grades.html"), os.path.join(grades_folder_path, "grades.jpg"),
                      options=options)
+
+
+def generate_grades_to_msg(gardes):
+    grades_msg = ""
+    for garde in gardes:
+        grades_msg += "名称：" + garde["name"] + "\n"
+        grades_msg += "分数：" + garde["grade_score"] + "\n"
+        grades_msg += "绩点：" + garde["gpa"] + "\n"
+        grades_msg += "学分：" + str(garde["credit"]) + "\n"
+        grades_msg += "详细成绩:" + "\n"
+        for detail in garde["grade_detail"][:-1]:
+            grades_msg += "├──" + detail + "\n"
+        grades_msg += "└──" + garde["grade_detail"][-1] + "\n\n"
+    return grades_msg[:-2]

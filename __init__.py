@@ -21,6 +21,7 @@ from .nwpu_query import NwpuQuery
 import json
 import asyncio
 from .utils import generate_img_from_html
+from .utils import generate_grades_to_msg
 from .nwpu_electric import get_campaus,get_building,get_room,get_electric_left
 
 __plugin_meta__ = PluginMetadata(
@@ -77,11 +78,11 @@ async def handel_function(matcher: Matcher, event: Event, args: Message = Comman
                     await nwpu.send(f"正在获取考试信息，请等待")
                     exams_msg, _ = nwpu_query_class.get_exams(folder_path, False)
                     print(exams_msg)
-                    await nwpu.finish("你的考试有：\n\n"+exams_msg)
+                    await nwpu.finish("你的考试有：\n"+exams_msg)
                 elif msg == "全部排考" or msg == "全部考试" or msg == "全部排考信息" or msg == "全部考试信息":
                     await nwpu.send(f"正在获取全部考试信息，请等待")
                     exams_msg, _ = nwpu_query_class.get_exams(folder_path, True)
-                    await nwpu.finish("你的全部考试有：\n\n"+exams_msg)
+                    await nwpu.finish("你的全部考试有：\n"+exams_msg)
                 else:
                     await nwpu.finish("那是什么 我不知道\n"
                                       "发送 help 可获取全部指令")
@@ -196,7 +197,7 @@ def get_grades_and_ranks_and_exams():
                 if new_grades:
                     pic_path = os.path.join(folder_path, 'grades.jpg')
                     generate_img_from_html(new_grades, folder_path)
-                    grades_change.append([qq, pic_path])
+                    grades_change.append([qq, pic_path, generate_grades_to_msg(new_grades)])
                     logger.info(f"{qq}出新成绩啦")
                 else:
                     logger.info(f"{qq}的grades没变，没出新成绩")
@@ -239,9 +240,12 @@ def get_grades_and_ranks_and_exams():
 @scheduler.scheduled_job("cron", minute="*/15",id="job_0")
 async def every_15_minutes_check():
     grades_change, ranks_change, exams_change = await get_grades_and_ranks_and_exams()
-    for qq, pic_path in grades_change:
+    for qq, pic_path, grades_msg in grades_change:
         bot: Bot = get_bot()
-        await bot.send_private_msg(user_id=int(qq), message = "出新成绩啦" + MessageSegment.image(Path(pic_path)))
+        # 图片有拦截风险 故文字和图片版一起发
+        await bot.send_private_msg(user_id=int(qq), message=f"出新成绩啦！\n{grades_msg}")
+        await asyncio.sleep(2)
+        await bot.send_private_msg(user_id=int(qq), message=MessageSegment.image(Path(pic_path)))
         await asyncio.sleep(2)
     for qq, rank_old, rank, rank_msg in ranks_change:
         bot: Bot = get_bot()
