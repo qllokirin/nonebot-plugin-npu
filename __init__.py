@@ -56,8 +56,8 @@ async def handel_function(matcher: Matcher, event: Event, args: Message = Comman
         cookies_path = os.path.join(folder_path, 'cookies.txt')
         if os.path.isfile(cookies_path):
             if msg == "排考" or msg == "考试" or msg == "排考信息" or msg == "考试信息":
-                if exams_msg:
-                    await nwpu.finish("你的全部考试有：\n"+exams_msg)
+                if get_exams_msg(folder_path):
+                    await nwpu.finish("你的全部考试有：\n"+ get_exams_msg(folder_path))
                 else:
                     await nwpu.finish("暂无考试")
             else:
