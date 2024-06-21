@@ -1,7 +1,7 @@
 from nonebot import get_driver
 from nonebot.plugin import PluginMetadata
 from .config import Config
-from nonebot.adapters.onebot.v11 import Bot, Event, MessageSegment
+from nonebot.adapters.onebot.v11 import Bot, Event, Message, MessageSegment, MessageEvent ,GroupMessageEvent, PrivateMessageEvent
 from nonebot.matcher import Matcher
 from nonebot.params import ArgPlainText
 from nonebot import on_command, get_bot
@@ -11,7 +11,6 @@ from nonebot.adapters import Message
 from nonebot.params import CommandArg
 from nonebot import require
 from nonebot.utils import run_sync
-
 require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
 from nonebot import logger
@@ -20,6 +19,7 @@ import shutil
 from .nwpu_query import NwpuQuery
 import json
 import asyncio
+from typing import Any, List, Tuple, Union
 from .utils import generate_img_from_html
 from .utils import generate_grades_to_msg
 from .utils import get_exams_msg
@@ -40,9 +40,50 @@ nwpu_query_class = None
 folder_path = ""
 account = None
 
+async def send_forward_msg(
+    bot: Bot,
+    event: MessageEvent,
+    name: str,
+    uin: str,
+    user_message: List[Message],
+):
+    def to_json(info: Message):
+        return {
+            "type": "node",
+            "data": {"name": name, "uin": uin, "content": info},
+        }
+
+    messages = [to_json(info) for info in user_message]
+    if isinstance(event, GroupMessageEvent):
+        return await bot.call_api(
+            "send_group_forward_msg", group_id=event.group_id, messages=messages
+        )
+    else:
+        return await bot.call_api(
+            "send_private_forward_msg", user_id=event.user_id, messages=messages
+        )
+
+
+async def send_private_forward_msg(
+    bot: Bot,
+    user_id: str,
+    name: str,
+    uin: str,
+    user_message: List[Message],
+):
+    def to_json(info: Message):
+        return {
+            "type": "node",
+            "data": {"name": name, "uin": uin, "content": info},
+        }
+
+    messages = [to_json(info) for info in user_message]
+    return await bot.call_api(
+        "send_private_forward_msg", user_id=user_id, messages=messages
+    )
 
 @nwpu.handle()
-async def handel_function(matcher: Matcher, event: Event, args: Message = CommandArg()):
+async def handel_function(bot: Bot,matcher: Matcher, event: Union[PrivateMessageEvent, GroupMessageEvent], args: Message = CommandArg()):
     global folder_path
     global account
     global nwpu_query_class
@@ -71,13 +112,19 @@ async def handel_function(matcher: Matcher, event: Event, args: Message = Comman
                         generate_img_from_html(grades, folder_path)
                         await nwpu.send(MessageSegment.image(Path(pic_path)))
                         rank_msg, _ = nwpu_query_class.get_rank(folder_path)
-                        await nwpu.finish(rank_msg)
+                        await nwpu.send(rank_msg)
+                        # 防吞尝试
+                        await send_forward_msg(bot, event, "防tx吞消息楼，里外是一样的", str(event.self_id), [MessageSegment.text("防tx吞消息楼，里外是一样的"), MessageSegment.image(Path(pic_path)),MessageSegment.text(rank_msg)])
+                        await nwpu.finish()
                     elif msg == "全部成绩":
                         await nwpu.send(f"正在获取全部成绩，请等待")
                         _, grades = nwpu_query_class.get_grades(folder_path)
                         pic_path = os.path.join(folder_path, 'grades.jpg')
                         generate_img_from_html(grades, folder_path)
-                        await nwpu.finish(MessageSegment.image(Path(pic_path)))
+                        await nwpu.send(MessageSegment.image(Path(pic_path)))
+                        # 防吞尝试
+                        await send_forward_msg(bot, event, "防tx吞消息楼，里外是一样的", str(event.self_id), [MessageSegment.text("防tx吞消息楼，里外是一样的"), MessageSegment.image(Path(pic_path))])
+                        await nwpu.finish()
                     elif msg == "排名":
                         rank_msg, _ = nwpu_query_class.get_rank(folder_path)
                         await nwpu.finish(rank_msg)
@@ -85,7 +132,10 @@ async def handel_function(matcher: Matcher, event: Event, args: Message = Comman
                         await nwpu.send(f"正在获取全部考试信息，请等待")
                         exams_msg, _ = nwpu_query_class.get_exams(folder_path, True)
                         if exams_msg:
-                            await nwpu.finish("你的全部考试有：\n"+exams_msg)
+                            # 防吞尝试
+                            await send_forward_msg(bot, event, "防tx吞消息楼，里外是一样的", str(event.self_id), [MessageSegment.text("你的全部考试有：\n"+exams_msg)])
+                            exams_msg, _ = nwpu_query_class.get_exams(folder_path, False)
+                            await nwpu.finish()
                         else:
                             await nwpu.finish("暂无考试")
                     else:
@@ -100,7 +150,7 @@ async def handel_function(matcher: Matcher, event: Event, args: Message = Comman
 
 
 @nwpu.got("account_infomation", prompt="请选择登陆方式\n1->账号密码手机验证码登录\n2->账号密码邮箱验证码登录\n3->扫码登录\n登录成功后会自动检测是否有新成绩，但若选择扫码登录，一天后登陆凭证会失效，无法长期监测新成绩")
-async def get_username(event: Event, account_infomation: str = ArgPlainText()):
+async def get_username(bot : Bot,event: Event, account_infomation: str = ArgPlainText()):
     account.append(account_infomation)
     folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
     if len(account) == 1:
@@ -160,10 +210,11 @@ async def get_username(event: Event, account_infomation: str = ArgPlainText()):
             rank_msg, _ = nwpu_query_class.get_rank(folder_path)
             await nwpu.send(rank_msg)
             exams_msg, _ = nwpu_query_class.get_exams(folder_path)
-            if exams_msg:
-                await nwpu.finish("你的考试有：\n"+exams_msg)
-            else:
-                await nwpu.finish("暂无考试")
+            exams_msg = ("你的考试有：\n" + exams_msg) if exams_msg else "暂无考试"
+            await nwpu.send(exams_msg)
+            # 防吞尝试
+            await send_forward_msg(bot, event, "防tx吞消息楼，里外是一样的", str(event.self_id), [MessageSegment.text("防tx吞消息楼，里外是一样的"), MessageSegment.image(Path(pic_path)), MessageSegment.text(rank_msg), MessageSegment.text(exams_msg)])
+            await nwpu.finish()
         elif status == 3:
             account.pop()
             await nwpu.reject(f'验证码错误，请重新输入验证码\n输入 停止 可以终止此次登陆')
@@ -247,6 +298,7 @@ def get_grades_and_ranks_and_exams():
 
 @scheduler.scheduled_job("cron", minute="*/15",id="job_0")
 async def every_15_minutes_check():
+    bot: Bot = get_bot()
     grades_change, ranks_change, exams_change = await get_grades_and_ranks_and_exams()
     for qq, pic_path, grades_msg in grades_change:
         bot: Bot = get_bot()
@@ -255,10 +307,16 @@ async def every_15_minutes_check():
         await asyncio.sleep(2)
         await bot.send_private_msg(user_id=int(qq), message=MessageSegment.image(Path(pic_path)))
         await asyncio.sleep(2)
+        # 防吞尝试
+        await send_private_forward_msg(bot, qq, "防tx吞消息楼，里外是一样的", bot.self_id, [MessageSegment.text("防tx吞消息楼，里外是一样的"), MessageSegment.image(Path(pic_path))])
+        await asyncio.sleep(2)
     for qq, rank_old, rank, rank_msg in ranks_change:
         bot: Bot = get_bot()
         await bot.send_private_msg(user_id=int(qq),
                                    message=f"你的rank发生了变化,{rank_old}->{rank}\n{rank_msg}")
+        await asyncio.sleep(2)
+        # 防吞尝试
+        await send_private_forward_msg(bot, qq, "防tx吞消息楼，里外是一样的", bot.self_id, [MessageSegment.text("防tx吞消息楼，里外是一样的"), MessageSegment.text(f"你的rank发生了变化,{rank_old}->{rank}\n{rank_msg}")])
         await asyncio.sleep(2)
     for qq, new_exams, exams_msg in exams_change:
         new_courses = [new_exam['course'] for new_exam in new_exams]
@@ -273,6 +331,10 @@ async def every_15_minutes_check():
         await bot.send_private_msg(user_id=int(qq),
                                    message=f"你的全部未结束考试有：\n"+exams_msg)
         await asyncio.sleep(2)
+        # 防吞尝试
+        await send_private_forward_msg(bot, qq, "防tx吞消息楼，里外是一样的", bot.self_id, [MessageSegment.text("防tx吞消息楼，里外是一样的"), MessageSegment.text(f"你有新的考试有：\n"+new_course_msg), MessageSegment.text(f"你的全部未结束考试有：\n"+exams_msg)])
+        await asyncio.sleep(2)
+    logger.error(f"本次检测完毕")
 
 nwpu_electric = on_command("翱翔电费", rule=to_me(), priority=10, block=True)
 
@@ -311,7 +373,7 @@ async def handel_function(matcher: Matcher, event: Event, args: Message = Comman
 building_all = None
 room_all = None
 @nwpu_electric.got("electric_information", prompt="请选择校区")
-async def get_electric_information(event: Event, electric_information: str = ArgPlainText()):
+async def get_electric_information(bot: Bot, event: Event, electric_information: str = ArgPlainText()):
     global building_all
     global room_all
     electric_msg.append(electric_information)
@@ -319,14 +381,18 @@ async def get_electric_information(event: Event, electric_information: str = Arg
     if len(electric_msg) == 1:
         electric_msg[0] = campaus_all[int(electric_msg[0])]['value']
         msg_list,building_all = get_building(electric_msg[0])
+        msg_all = []
         for msg in msg_list:
-            await nwpu_electric.send(msg)
+            msg_all.append(MessageSegment.text(msg))
+        await send_forward_msg(bot, event, "防tx吞消息楼，里外是一样的", str(event.self_id), msg_all)
         await nwpu_electric.reject()
     elif len(electric_msg) == 2:
         electric_msg[1] = building_all[int(electric_msg[1])]['value']
         msg_list,room_all = get_room(electric_msg[0],electric_msg[1])
+        msg_all = []
         for msg in msg_list:
-            await nwpu_electric.send(msg)
+            msg_all.append(MessageSegment.text(msg))
+        await send_forward_msg(bot, event, "防tx吞消息楼，里外是一样的", str(event.self_id), msg_all)
         await nwpu_electric.reject()
     elif len(electric_msg) == 3:
         electric_msg[2] = room_all[int(electric_msg[2])]['value']
