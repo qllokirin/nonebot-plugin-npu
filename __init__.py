@@ -98,7 +98,7 @@ async def handel_function(bot: Bot,matcher: Matcher, event: Union[PrivateMessage
         if os.path.isfile(cookies_path):
             if msg == "排考" or msg == "考试" or msg == "排考信息" or msg == "考试信息":
                 if get_exams_msg(folder_path):
-                    await nwpu.finish("你的全部考试有：\n"+ get_exams_msg(folder_path))
+                    await nwpu.finish("你的全部未结束考试有：\n"+ get_exams_msg(folder_path))
                 else:
                     await nwpu.finish("暂无考试")
             else:
@@ -202,7 +202,7 @@ async def get_username(bot : Bot,event: Event, account_infomation: str = ArgPlai
         elif int(account[0]) == 3:
             status = 2
         if status == 2:
-            await nwpu.send(f"正在获取全部成绩，请稍等")
+            await nwpu.send(f"登陆成功！正在获取全部成绩，请稍等")
             _, grades = nwpu_query_class.get_grades(folder_path)
             pic_path = os.path.join(folder_path, 'grades.jpg')
             generate_img_from_html(grades, folder_path)
@@ -247,7 +247,6 @@ def get_grades_and_ranks_and_exams():
         # 登陆
         if nwpu_query_class_sched.use_recent_cookies_login(cookies_path):
             # 先检测成绩变化
-            logger.info(f"正在检测{qq}的成绩")
             if os.path.exists(os.path.join(folder_path, 'grades.json')):
                 with open((os.path.join(folder_path, 'grades.json')), 'r', encoding='utf-8') as f:
                     grades_old = json.loads(f.read())
@@ -258,13 +257,10 @@ def get_grades_and_ranks_and_exams():
                     generate_img_from_html(new_grades, folder_path)
                     grades_change.append([qq, pic_path, generate_grades_to_msg(new_grades)])
                     logger.info(f"{qq}出新成绩啦")
-                else:
-                    logger.info(f"{qq}的grades没变，没出新成绩")
             else:
                 nwpu_query_class_sched.get_grades(folder_path)
 
             # 检测rank的变化
-            logger.info(f"正在检测{qq}的排名")
             if os.path.exists(os.path.join(folder_path, 'rank.txt')):
                 with open((os.path.join(folder_path, 'rank.txt')), 'r', encoding='utf-8') as f:
                     rank_old = f.read()
@@ -272,13 +268,10 @@ def get_grades_and_ranks_and_exams():
                 if str(rank_old) != str(rank):
                     ranks_change.append([qq, rank_old, rank, rank_msg])
                     logger.info(f"{qq}的rank变化啦")
-                else:
-                    logger.info(f"{qq}的rank没变，是{rank}")
             else:
                 nwpu_query_class_sched.get_rank(folder_path)
             
             # 检测考试变化
-            logger.info(f"正在检测{qq}的考试信息")
             if os.path.exists(os.path.join(folder_path, 'exams.json')):
                 with open((os.path.join(folder_path, 'exams.json')), 'r', encoding='utf-8') as f:
                     exams_old = json.loads(f.read())
@@ -287,8 +280,6 @@ def get_grades_and_ranks_and_exams():
                 if new_exams:
                     exams_change.append([qq, new_exams, exams_msg])
                     logger.info(f"{qq}出新考试啦")
-                else:
-                    logger.info(f"{qq}的exams没变，没出新考试")
             else:
                 nwpu_query_class_sched.get_exams(folder_path)
         else:
@@ -301,7 +292,6 @@ async def every_15_minutes_check():
     bot: Bot = get_bot()
     grades_change, ranks_change, exams_change = await get_grades_and_ranks_and_exams()
     for qq, pic_path, grades_msg in grades_change:
-        bot: Bot = get_bot()
         # 图片有拦截风险 故文字和图片版一起发
         await bot.send_private_msg(user_id=int(qq), message=f"出新成绩啦！\n{grades_msg}")
         await asyncio.sleep(2)
@@ -311,7 +301,6 @@ async def every_15_minutes_check():
         await send_private_forward_msg(bot, qq, "防tx吞消息楼，里外是一样的", bot.self_id, [MessageSegment.text("防tx吞消息楼，里外是一样的"), MessageSegment.image(Path(pic_path))])
         await asyncio.sleep(2)
     for qq, rank_old, rank, rank_msg in ranks_change:
-        bot: Bot = get_bot()
         await bot.send_private_msg(user_id=int(qq),
                                    message=f"你的rank发生了变化,{rank_old}->{rank}\n{rank_msg}")
         await asyncio.sleep(2)
@@ -324,7 +313,6 @@ async def every_15_minutes_check():
         for new_course in new_courses:
             new_course_msg += new_course + "\n"
         new_course_msg = new_course_msg[:-1]
-        bot: Bot = get_bot()
         await bot.send_private_msg(user_id=int(qq),
                                    message=f"你有新的考试有：\n"+new_course_msg)
         await asyncio.sleep(2)
@@ -334,7 +322,7 @@ async def every_15_minutes_check():
         # 防吞尝试
         await send_private_forward_msg(bot, qq, "防tx吞消息楼，里外是一样的", bot.self_id, [MessageSegment.text("防tx吞消息楼，里外是一样的"), MessageSegment.text(f"你有新的考试有：\n"+new_course_msg), MessageSegment.text(f"你的全部未结束考试有：\n"+exams_msg)])
         await asyncio.sleep(2)
-    logger.error(f"本次检测完毕")
+    logger.info(f"本次检测完毕")
 
 nwpu_electric = on_command("翱翔电费", rule=to_me(), priority=10, block=True)
 
@@ -364,11 +352,9 @@ async def handel_function(matcher: Matcher, event: Event, args: Message = Comman
             msg,campaus_all = get_campaus()
             await nwpu_electric.send(msg)
         else:
-            await nwpu_electric.finish("请输入/翱翔电费 或 /翱翔电费绑定 进行绑定 \n或者/翱翔电费查询 进行电费查询")
+            await nwpu_electric.finish("请输入 /翱翔电费绑定 进行绑定 \n或者/翱翔电费查询 进行电费查询")
     else:
-        logger.info("绑定新的宿舍")
-        msg,campaus_all = get_campaus()
-        await nwpu_electric.send(msg)
+        await nwpu_electric.finish("请输入 /翱翔电费绑定 进行绑定 \n或者/翱翔电费查询 进行电费查询")
         
 building_all = None
 room_all = None
