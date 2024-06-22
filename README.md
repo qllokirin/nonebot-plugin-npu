@@ -6,7 +6,8 @@ nonebot-plugin-npu，翱翔门户成绩监控插件，能获取成绩、排名�
 - [x] 出现新成绩时推送
 - [x] 排名变动时推送
 - [x] 宿舍电费监控
-- [ ] 排考检测
+- [x] 排考检测
+- [ ] 课表提取
 
 # 💿 安装
 
@@ -29,7 +30,7 @@ git clone https://github.com/qllokirin/nonebot-plugin-npu.git ./{你的插件目
 
   ```
   pip install requests imgkit==1.0.2 paho-mqtt==1.6.1 bs4 rsa
-  pip install nonebot_plugin_gocqhttp nonebot_plugin_apscheduler
+  pip install nonebot_plugin_apscheduler
   ```
 
 * 3.安装wkhtmltopdf
@@ -45,20 +46,25 @@ git clone https://github.com/qllokirin/nonebot-plugin-npu.git ./{你的插件目
 
 ### 指令表
 
-|            指令            | 范围 |         说明         |
-| :------------------------: | :--: | :------------------: |
-|         **/翱翔**          | 私聊 |     登陆翱翔门户     |
-|         /翱翔成绩          | 私聊 | 获取最近一学期的成绩 |
-|       /翱翔全部成绩        | 私聊 |     获取全部成绩     |
-|         /翱翔排名          | 私聊 |   获取排名以及绩点   |
-| /翱翔电费绑定 or /翱翔电费 | 私聊 | 绑定宿舍进行电费检测 |
-|       /翱翔电费查询        | 私聊 |       查询电费       |
+|     指令      |   范围    |                说明                |
+| :-----------: | :-------: | :--------------------------------: |
+|   **/翱翔**   | 私聊/艾特 |            登陆翱翔门户            |
+|   /翱翔成绩   | 私聊/艾特 |          获取本学期的成绩          |
+|   /翱翔排名   | 私聊/艾特 |            获取排名信息            |
+|   /翱翔考试   | 私聊/艾特 |        获取未结束的考试信息        |
+| /翱翔全部成绩 | 私聊/艾特 |            获取全部成绩            |
+| /翱翔全部考试 | 私聊/艾特 |          获取全部考试信息          |
+| /翱翔电费绑定 | 私聊/艾特 | 绑定宿舍，当电费小于25时会推送消息 |
+| /翱翔电费查询 | 私聊/艾特 |            查询当前电费            |
 
 # 效果图
 
-![图层 1.png](https://s2.loli.net/2024/02/20/lyNCOXUaczwBIr3.png)
+<details>
+<summary>演示效果</summary>
 
-![图层 0.png](https://s2.loli.net/2024/02/20/CyQ5IAcN61YD4wG.png)
+![mail.png](images/demo.jpg)
+
+</details>
 
 # nonebot使用
 
@@ -87,17 +93,10 @@ nb run --reload
 ```
 HOST=0.0.0.0  # 配置 NoneBot 监听的 IP / 主机名
 PORT=22330  # 配置 NoneBot 监听的端口
-SUPERUSER=["123456"] # QQ账号 超级用户
+SUPERUSERS=["123456"] # QQ账号 超级用户
 ```
 
-安装插件
-
-```
-# 再次启动后打开 http://127.0.0.1:22330/go-cqhttp/ 进行登陆QQ号
-nb run
-```
-
-> 扫码时需要在同网络环境下，云服务器上登录需要在本地登陆好之后把accounts文件夹复制过去，accounts文件夹里面的binary文件夹要删掉
+gocq基本已g，登陆建议使用[NapCatQQ](https://github.com/NapNeko/NapCatQQ)或[Lagrange](https://github.com/LagrangeDev/Lagrange.Core)
 
 # 致谢
 

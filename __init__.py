@@ -148,7 +148,7 @@ async def handel_function(bot: Bot,matcher: Matcher, event: Union[PrivateMessage
         logger.info("全新的账号正在登陆中")
 
 
-@nwpu.got("account_infomation", prompt="请选择登陆方式\n1->账号密码手机验证码登录\n2->账号密码邮箱验证码登录\n3->扫码登录\n登录成功后会自动检测是否有新成绩，但若选择扫码登录，一天后登陆凭证会失效，无法长期监测新成绩")
+@nwpu.got("account_infomation", prompt="请选择登陆方式\n1->账号密码手机验证码登录\n2->账号密码邮箱验证码登录\n3->扫码登录\n登录成功后会自动检测是否有新成绩，但若选择扫码登录，一天后登陆凭证会失效，无法长期监测新成绩\n\n会收集必要的信息用于持久登陆和成绩检测，继续登陆代表你已同意")
 async def get_username(bot : Bot,event: Event, account_infomation: str = ArgPlainText()):
     account.append(account_infomation)
     folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
