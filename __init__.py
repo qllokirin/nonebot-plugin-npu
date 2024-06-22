@@ -309,7 +309,7 @@ async def connect():
     scheduler.resume_job('check_new_info')
     scheduler.resume_job('check_power')
 
-@scheduler.scheduled_job("cron", minute="*/1",id="check_new_info")
+@scheduler.scheduled_job("cron", minute="*/15",id="check_new_info")
 async def every_15_minutes_check():
     """
     定时任务 检测新成绩/rank/考试
