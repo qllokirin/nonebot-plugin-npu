@@ -90,8 +90,6 @@ async def handel_function(bot: Bot,matcher: Matcher, event: Union[PrivateMessage
     del nwpu_query_class
     nwpu_query_class = NwpuQuery()
     folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
     account = []
     if msg := args.extract_plain_text():
         cookies_path = os.path.join(folder_path, 'cookies.txt')
@@ -142,6 +140,7 @@ async def handel_function(bot: Bot,matcher: Matcher, event: Union[PrivateMessage
                         await nwpu.finish("那是什么 我不知道\n"
                                         "发送 help 可获取全部指令")
                 else:
+                    shutil.rmtree(folder_path)
                     await nwpu.finish("登陆失败 cookie过期，请输入 /翱翔 进行登陆")
         else:
             await nwpu.finish("你还没有登陆过，请输入 /翱翔 进行登陆")
@@ -153,6 +152,8 @@ async def handel_function(bot: Bot,matcher: Matcher, event: Union[PrivateMessage
 async def get_username(bot : Bot,event: Event, account_infomation: str = ArgPlainText()):
     account.append(account_infomation)
     folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
     if len(account) == 1:
         if account[0] == "3":
             account.append("")
@@ -241,6 +242,7 @@ def get_grades_and_ranks_and_exams():
     grades_change = []
     ranks_change = []
     exams_change = []
+    failure_qq = []
 
     for qq in qq_all:
         folder_path = os.path.join(os.path.dirname(__file__), 'data', qq)
@@ -285,9 +287,11 @@ def get_grades_and_ranks_and_exams():
             else:
                 nwpu_query_class_sched.get_exams(folder_path)
         else:
-            logger.error(f"{qq}的cookies失效了")
+            logger.error(f"{qq}的cookies失效了,删除该文件夹")
+            failure_qq.append(qq)
+            shutil.rmtree(folder_path)
         del nwpu_query_class_sched
-    return grades_change, ranks_change, exams_change
+    return grades_change, ranks_change, exams_change, failure_qq
 
 
 @driver.on_bot_disconnect
@@ -316,7 +320,7 @@ async def every_15_minutes_check():
     """
     if if_connected:
         bot: Bot = get_bot()
-        grades_change, ranks_change, exams_change = await get_grades_and_ranks_and_exams()
+        grades_change, ranks_change, exams_change, failure_qq = await get_grades_and_ranks_and_exams()
         for qq, pic_path, grades_msg in grades_change:
             # 图片有拦截风险 故文字和图片版一起发
             await bot.send_private_msg(user_id=int(qq), message=f"出新成绩啦！\n{grades_msg}")
@@ -348,6 +352,8 @@ async def every_15_minutes_check():
             # 防吞尝试
             await send_private_forward_msg(bot, qq, "防tx吞消息楼，里外是一样的", bot.self_id, [MessageSegment.text("防tx吞消息楼，里外是一样的"), MessageSegment.text(f"你有新的考试有：\n"+new_course_msg), MessageSegment.text(f"你的全部未结束考试有：\n"+exams_msg)])
             await asyncio.sleep(2)
+        for qq in failure_qq:
+            await bot.send_private_msg(user_id=int(qq), message=f"你的登陆信息已失效，请输入 /翱翔 重新登陆")
         logger.info(f"本次检测完毕")
     else:
         logger.info(f"bot失联，不检测")
@@ -374,7 +380,7 @@ async def handel_function(matcher: Matcher, event: Event, args: Message = Comman
                 electric_left = get_electric_left(electric_information['campaus'],electric_information['building'],electric_information['room'])
                 await nwpu_electric.finish(f'电费剩余{electric_left}')
             else:
-                await nwpu_electric.finish(f'暂未绑定宿舍\n请输入/翱翔电费 或 /翱翔电费绑定 进行绑定 \n或者/翱翔电费查询 进行电费查询')
+                await nwpu_electric.finish(f'暂未绑定宿舍\n请输入 /翱翔电费绑定 进行绑定')
         elif msg == "绑定":
             logger.info("绑定新的宿舍")
             msg,campaus_all = get_campaus()
