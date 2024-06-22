@@ -31,8 +31,8 @@ __plugin_meta__ = PluginMetadata(
     usage="",
     config=Config,
 )
-
-global_config = get_driver().config
+driver = get_driver()
+global_config = driver.config
 config = Config.parse_obj(global_config)
 
 nwpu = on_command("翱翔", rule=to_me(), aliases={"npu", "nwpu"}, priority=10, block=True)
@@ -221,6 +221,8 @@ async def get_username(bot : Bot,event: Event, account_infomation: str = ArgPlai
         else:
             await nwpu.finish(f'出错了，返回状态码{status}，此次登陆已终止')
 
+# bot是否在线 最开始启动时是离线的 与ws握手成功后变为True,断连后变为False
+if_connected = False
 @run_sync
 def get_grades_and_ranks_and_exams():
     # 获取全部已登陆的QQ号
@@ -245,7 +247,7 @@ def get_grades_and_ranks_and_exams():
         cookies_path = os.path.join(folder_path, 'cookies.txt')
         nwpu_query_class_sched = NwpuQuery()
         # 登陆
-        if nwpu_query_class_sched.use_recent_cookies_login(cookies_path):
+        if nwpu_query_class_sched.use_recent_cookies_login(cookies_path) and if_connected:
             # 先检测成绩变化
             if os.path.exists(os.path.join(folder_path, 'grades.json')):
                 with open((os.path.join(folder_path, 'grades.json')), 'r', encoding='utf-8') as f:
@@ -287,42 +289,68 @@ def get_grades_and_ranks_and_exams():
         del nwpu_query_class_sched
     return grades_change, ranks_change, exams_change
 
-@scheduler.scheduled_job("cron", minute="*/15",id="job_0")
+
+@driver.on_bot_disconnect
+async def disconnect():
+    """bot断连 暂停定时任务"""
+    global if_connected
+    if_connected = False
+    logger.info("bot失联，关闭定时任务")
+    scheduler.pause_job('check_new_info')
+    scheduler.pause_job('check_power')
+
+
+@driver.on_bot_connect
+async def connect():
+    """bot接入 启动定时任务"""
+    global if_connected
+    if_connected = True
+    logger.info("bot接入，启动定时任务")
+    scheduler.resume_job('check_new_info')
+    scheduler.resume_job('check_power')
+
+@scheduler.scheduled_job("cron", minute="*/1",id="check_new_info")
 async def every_15_minutes_check():
-    bot: Bot = get_bot()
-    grades_change, ranks_change, exams_change = await get_grades_and_ranks_and_exams()
-    for qq, pic_path, grades_msg in grades_change:
-        # 图片有拦截风险 故文字和图片版一起发
-        await bot.send_private_msg(user_id=int(qq), message=f"出新成绩啦！\n{grades_msg}")
-        await asyncio.sleep(2)
-        await bot.send_private_msg(user_id=int(qq), message=MessageSegment.image(Path(pic_path)))
-        await asyncio.sleep(2)
-        # 防吞尝试
-        await send_private_forward_msg(bot, qq, "防tx吞消息楼，里外是一样的", bot.self_id, [MessageSegment.text("防tx吞消息楼，里外是一样的"), MessageSegment.image(Path(pic_path))])
-        await asyncio.sleep(2)
-    for qq, rank_old, rank, rank_msg in ranks_change:
-        await bot.send_private_msg(user_id=int(qq),
-                                   message=f"你的rank发生了变化,{rank_old}->{rank}\n{rank_msg}")
-        await asyncio.sleep(2)
-        # 防吞尝试
-        await send_private_forward_msg(bot, qq, "防tx吞消息楼，里外是一样的", bot.self_id, [MessageSegment.text("防tx吞消息楼，里外是一样的"), MessageSegment.text(f"你的rank发生了变化,{rank_old}->{rank}\n{rank_msg}")])
-        await asyncio.sleep(2)
-    for qq, new_exams, exams_msg in exams_change:
-        new_courses = [new_exam['course'] for new_exam in new_exams]
-        new_course_msg = ""
-        for new_course in new_courses:
-            new_course_msg += new_course + "\n"
-        new_course_msg = new_course_msg[:-1]
-        await bot.send_private_msg(user_id=int(qq),
-                                   message=f"你有新的考试有：\n"+new_course_msg)
-        await asyncio.sleep(2)
-        await bot.send_private_msg(user_id=int(qq),
-                                   message=f"你的全部未结束考试有：\n"+exams_msg)
-        await asyncio.sleep(2)
-        # 防吞尝试
-        await send_private_forward_msg(bot, qq, "防tx吞消息楼，里外是一样的", bot.self_id, [MessageSegment.text("防tx吞消息楼，里外是一样的"), MessageSegment.text(f"你有新的考试有：\n"+new_course_msg), MessageSegment.text(f"你的全部未结束考试有：\n"+exams_msg)])
-        await asyncio.sleep(2)
-    logger.info(f"本次检测完毕")
+    """
+    定时任务 检测新成绩/rank/考试
+    """
+    if if_connected:
+        bot: Bot = get_bot()
+        grades_change, ranks_change, exams_change = await get_grades_and_ranks_and_exams()
+        for qq, pic_path, grades_msg in grades_change:
+            # 图片有拦截风险 故文字和图片版一起发
+            await bot.send_private_msg(user_id=int(qq), message=f"出新成绩啦！\n{grades_msg}")
+            await asyncio.sleep(2)
+            await bot.send_private_msg(user_id=int(qq), message=MessageSegment.image(Path(pic_path)))
+            await asyncio.sleep(2)
+            # 防吞尝试
+            await send_private_forward_msg(bot, qq, "防tx吞消息楼，里外是一样的", bot.self_id, [MessageSegment.text("防tx吞消息楼，里外是一样的"), MessageSegment.image(Path(pic_path))])
+            await asyncio.sleep(2)
+        for qq, rank_old, rank, rank_msg in ranks_change:
+            await bot.send_private_msg(user_id=int(qq),
+                                    message=f"你的rank发生了变化,{rank_old}->{rank}\n{rank_msg}")
+            await asyncio.sleep(2)
+            # 防吞尝试
+            await send_private_forward_msg(bot, qq, "防tx吞消息楼，里外是一样的", bot.self_id, [MessageSegment.text("防tx吞消息楼，里外是一样的"), MessageSegment.text(f"你的rank发生了变化,{rank_old}->{rank}\n{rank_msg}")])
+            await asyncio.sleep(2)
+        for qq, new_exams, exams_msg in exams_change:
+            new_courses = [new_exam['course'] for new_exam in new_exams]
+            new_course_msg = ""
+            for new_course in new_courses:
+                new_course_msg += new_course + "\n"
+            new_course_msg = new_course_msg[:-1]
+            await bot.send_private_msg(user_id=int(qq),
+                                    message=f"你有新的考试有：\n"+new_course_msg)
+            await asyncio.sleep(2)
+            await bot.send_private_msg(user_id=int(qq),
+                                    message=f"你的全部未结束考试有：\n"+exams_msg)
+            await asyncio.sleep(2)
+            # 防吞尝试
+            await send_private_forward_msg(bot, qq, "防tx吞消息楼，里外是一样的", bot.self_id, [MessageSegment.text("防tx吞消息楼，里外是一样的"), MessageSegment.text(f"你有新的考试有：\n"+new_course_msg), MessageSegment.text(f"你的全部未结束考试有：\n"+exams_msg)])
+            await asyncio.sleep(2)
+        logger.info(f"本次检测完毕")
+    else:
+        logger.info(f"bot失联，不检测")
 
 nwpu_electric = on_command("翱翔电费", rule=to_me(), priority=10, block=True)
 
@@ -415,7 +443,7 @@ def get_nwpu_electric():
             electric_all.append([qq,electric_left])
     return electric_all
 
-@scheduler.scheduled_job("cron", hour="12", id="job_1")
+@scheduler.scheduled_job("cron", hour="12", id="check_power")
 async def every_15_20_check():
     electric_all = await get_nwpu_electric()
     for qq,electric_left in electric_all:
