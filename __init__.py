@@ -111,8 +111,6 @@ async def handel_function(bot: Bot,matcher: Matcher, event: Union[PrivateMessage
                         await nwpu.send(MessageSegment.image(Path(pic_path)))
                         rank_msg, _ = nwpu_query_class.get_rank(folder_path)
                         await nwpu.send(rank_msg)
-                        # 防吞尝试
-                        await send_forward_msg(bot, event, "防tx吞消息楼，里外是一样的", str(event.self_id), [MessageSegment.text("防tx吞消息楼，里外是一样的"), MessageSegment.image(Path(pic_path)),MessageSegment.text(rank_msg)])
                         await nwpu.finish()
                     elif msg == "全部成绩":
                         await nwpu.send(f"正在获取全部成绩，请等待")
@@ -120,8 +118,6 @@ async def handel_function(bot: Bot,matcher: Matcher, event: Union[PrivateMessage
                         pic_path = os.path.join(folder_path, 'grades.jpg')
                         generate_img_from_html(grades, folder_path)
                         await nwpu.send(MessageSegment.image(Path(pic_path)))
-                        # 防吞尝试
-                        await send_forward_msg(bot, event, "防tx吞消息楼，里外是一样的", str(event.self_id), [MessageSegment.text("防tx吞消息楼，里外是一样的"), MessageSegment.image(Path(pic_path))])
                         await nwpu.finish()
                     elif msg == "排名":
                         rank_msg, _ = nwpu_query_class.get_rank(folder_path)
@@ -130,8 +126,6 @@ async def handel_function(bot: Bot,matcher: Matcher, event: Union[PrivateMessage
                         await nwpu.send(f"正在获取全部考试信息，请等待")
                         exams_msg, _ = nwpu_query_class.get_exams(folder_path, True)
                         if exams_msg:
-                            # 防吞尝试
-                            await send_forward_msg(bot, event, "防tx吞消息楼，里外是一样的", str(event.self_id), [MessageSegment.text("你的全部考试有：\n"+exams_msg)])
                             exams_msg, _ = nwpu_query_class.get_exams(folder_path, False)
                             await nwpu.finish()
                         else:
@@ -213,8 +207,6 @@ async def get_username(bot : Bot,event: Event, account_infomation: str = ArgPlai
             exams_msg, _ = nwpu_query_class.get_exams(folder_path)
             exams_msg = ("你的考试有：\n" + exams_msg) if exams_msg else "暂无考试"
             await nwpu.send(exams_msg)
-            # 防吞尝试
-            await send_forward_msg(bot, event, "防tx吞消息楼，里外是一样的", str(event.self_id), [MessageSegment.text("防tx吞消息楼，里外是一样的"), MessageSegment.image(Path(pic_path)), MessageSegment.text(rank_msg), MessageSegment.text(exams_msg)])
             await nwpu.finish()
         elif status == 3:
             account.pop()
@@ -327,15 +319,11 @@ async def every_15_minutes_check():
             await asyncio.sleep(2)
             await bot.send_private_msg(user_id=int(qq), message=MessageSegment.image(Path(pic_path)))
             await asyncio.sleep(2)
-            # 防吞尝试
-            await send_private_forward_msg(bot, qq, "防tx吞消息楼，里外是一样的", bot.self_id, [MessageSegment.text("防tx吞消息楼，里外是一样的"), MessageSegment.image(Path(pic_path))])
             await asyncio.sleep(2)
         for qq, rank_old, rank, rank_msg in ranks_change:
             await bot.send_private_msg(user_id=int(qq),
                                     message=f"你的rank发生了变化,{rank_old}->{rank}\n{rank_msg}")
             await asyncio.sleep(2)
-            # 防吞尝试
-            await send_private_forward_msg(bot, qq, "防tx吞消息楼，里外是一样的", bot.self_id, [MessageSegment.text("防tx吞消息楼，里外是一样的"), MessageSegment.text(f"你的rank发生了变化,{rank_old}->{rank}\n{rank_msg}")])
             await asyncio.sleep(2)
         for qq, new_exams, exams_msg in exams_change:
             new_courses = [new_exam['course'] for new_exam in new_exams]
@@ -349,8 +337,6 @@ async def every_15_minutes_check():
             await bot.send_private_msg(user_id=int(qq),
                                     message=f"你的全部未结束考试有：\n"+exams_msg)
             await asyncio.sleep(2)
-            # 防吞尝试
-            await send_private_forward_msg(bot, qq, "防tx吞消息楼，里外是一样的", bot.self_id, [MessageSegment.text("防tx吞消息楼，里外是一样的"), MessageSegment.text(f"你有新的考试有：\n"+new_course_msg), MessageSegment.text(f"你的全部未结束考试有：\n"+exams_msg)])
             await asyncio.sleep(2)
         for qq in failure_qq:
             await bot.send_private_msg(user_id=int(qq), message=f"你的登陆信息已失效，请输入 /翱翔 重新登陆")
