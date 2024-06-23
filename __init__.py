@@ -309,22 +309,26 @@ async def connect():
 @scheduler.scheduled_job("cron", minute="*/15",id="check_new_info")
 async def every_15_minutes_check():
     """
-    定时任务 检测新成绩/rank/考试
+    定时任务 检测新成绩/考试
     """
     if if_connected:
         bot: Bot = get_bot()
         grades_change, ranks_change, exams_change, failure_qq = await get_grades_and_ranks_and_exams()
         for qq, pic_path, grades_msg in grades_change:
-            # 图片有拦截风险 故文字和图片版一起发
+            rank_msg, _ = nwpu_query_class.get_rank(os.path.join(os.path.dirname(__file__), 'data', qq))
             await bot.send_private_msg(user_id=int(qq), message=f"出新成绩啦！\n{grades_msg}")
+            await asyncio.sleep(2)
+            await bot.send_private_msg(user_id=int(qq), message=f"{rank_msg}")
             await asyncio.sleep(2)
             await bot.send_private_msg(user_id=int(qq), message=MessageSegment.image(Path(pic_path)))
             await asyncio.sleep(2)
-            await asyncio.sleep(2)
-        for qq, rank_old, rank, rank_msg in ranks_change:
-            await bot.send_private_msg(user_id=int(qq),
-                                    message=f"你的rank发生了变化,{rank_old}->{rank}\n{rank_msg}")
-            await asyncio.sleep(2)
+        '''
+        学校的rank接口变化过于频繁，暂时不推送
+        '''
+        # for qq, rank_old, rank, rank_msg in ranks_change:
+        #     await bot.send_private_msg(user_id=int(qq),
+        #                             message=f"你的rank发生了变化,{rank_old}->{rank}\n{rank_msg}")
+        #     await asyncio.sleep(2)
         for qq, new_exams, exams_msg in exams_change:
             new_courses = [new_exam['course'] for new_exam in new_exams]
             new_course_msg = ""
