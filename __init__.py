@@ -126,6 +126,7 @@ async def handel_function(bot: Bot,matcher: Matcher, event: Union[PrivateMessage
                         await nwpu.send(f"正在获取全部考试信息，请等待")
                         exams_msg, _ = nwpu_query_class.get_exams(folder_path, True)
                         if exams_msg:
+                            await send_forward_msg(bot, event, "全部考试", str(event.self_id), [MessageSegment.text("你的全部考试有：\n"+exams_msg)])
                             exams_msg, _ = nwpu_query_class.get_exams(folder_path, False)
                             await nwpu.finish()
                         else:
@@ -324,7 +325,6 @@ async def every_15_minutes_check():
             await bot.send_private_msg(user_id=int(qq),
                                     message=f"你的rank发生了变化,{rank_old}->{rank}\n{rank_msg}")
             await asyncio.sleep(2)
-            await asyncio.sleep(2)
         for qq, new_exams, exams_msg in exams_change:
             new_courses = [new_exam['course'] for new_exam in new_exams]
             new_course_msg = ""
@@ -336,7 +336,6 @@ async def every_15_minutes_check():
             await asyncio.sleep(2)
             await bot.send_private_msg(user_id=int(qq),
                                     message=f"你的全部未结束考试有：\n"+exams_msg)
-            await asyncio.sleep(2)
             await asyncio.sleep(2)
         for qq in failure_qq:
             await bot.send_private_msg(user_id=int(qq), message=f"你的登陆信息已失效，请输入 /翱翔 重新登陆")
@@ -390,7 +389,7 @@ async def get_electric_information(bot: Bot, event: Event, electric_information:
         msg_all = []
         for msg in msg_list:
             msg_all.append(MessageSegment.text(msg))
-        await send_forward_msg(bot, event, "防tx吞消息楼，里外是一样的", str(event.self_id), msg_all)
+        await send_forward_msg(bot, event, "building_all", str(event.self_id), msg_all)
         await nwpu_electric.reject()
     elif len(electric_msg) == 2:
         electric_msg[1] = building_all[int(electric_msg[1])]['value']
@@ -398,7 +397,7 @@ async def get_electric_information(bot: Bot, event: Event, electric_information:
         msg_all = []
         for msg in msg_list:
             msg_all.append(MessageSegment.text(msg))
-        await send_forward_msg(bot, event, "防tx吞消息楼，里外是一样的", str(event.self_id), msg_all)
+        await send_forward_msg(bot, event, "room_all", str(event.self_id), msg_all)
         await nwpu_electric.reject()
     elif len(electric_msg) == 3:
         electric_msg[2] = room_all[int(electric_msg[2])]['value']
