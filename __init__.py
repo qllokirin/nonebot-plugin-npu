@@ -315,7 +315,11 @@ async def every_15_minutes_check():
         bot: Bot = get_bot()
         grades_change, ranks_change, exams_change, failure_qq = await get_grades_and_ranks_and_exams()
         for qq, pic_path, grades_msg in grades_change:
-            rank_msg, _ = nwpu_query_class.get_rank(os.path.join(os.path.dirname(__file__), 'data', qq))
+            folder_path = os.path.join(os.path.dirname(__file__), 'data', qq)
+            cookies_path = os.path.join(folder_path, 'cookies.txt')
+            nwpu_query_class_rank = NwpuQuery()
+            nwpu_query_class_rank.use_recent_cookies_login(cookies_path)
+            rank_msg, _ = nwpu_query_class_rank.get_rank(folder_path)
             await bot.send_private_msg(user_id=int(qq), message=f"出新成绩啦！\n{grades_msg}")
             await asyncio.sleep(2)
             await bot.send_private_msg(user_id=int(qq), message=f"{rank_msg}")
