@@ -42,6 +42,8 @@ git clone https://github.com/qllokirin/nonebot-plugin-npu.git ./{你的插件目
 
 - [ ] nb plugin安装方法
 
+在`.env.prod`中新增字段`npu_check_time=30`，代表每多少分钟检测一次成绩
+
 # 🎉 使用
 
 ### 指令表

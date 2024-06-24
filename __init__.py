@@ -306,8 +306,8 @@ async def connect():
     scheduler.resume_job('check_new_info')
     scheduler.resume_job('check_power')
 
-@scheduler.scheduled_job("cron", minute="*/15",id="check_new_info")
-async def every_15_minutes_check():
+@scheduler.scheduled_job("cron", minute="*/"+str(global_config.npu_check_time),id="check_new_info")
+async def check_grades_and_exams():
     """
     定时任务 检测新成绩/考试
     """
@@ -443,7 +443,7 @@ def get_nwpu_electric():
     return electric_all
 
 @scheduler.scheduled_job("cron", hour="12", id="check_power")
-async def every_15_20_check():
+async def check_electric():
     electric_all = await get_nwpu_electric()
     for qq,electric_left in electric_all:
         bot: Bot = get_bot()
