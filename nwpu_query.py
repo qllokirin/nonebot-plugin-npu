@@ -242,10 +242,7 @@ class NwpuQuery():
         rank = response.json()['stdGpaRankDto']['rank']
         before_rank_gpa = response.json()['stdGpaRankDto']['beforeRankGpa']
         after_rank_gpa = response.json()['stdGpaRankDto']['afterRankGpa']
-        rank_msg = f"你的绩点是{gpa},排名是{rank}\n"
-        f"和前一名差{before_rank_gpa - gpa:.3f}绩点\n"
-        f"与后一名差{gpa - after_rank_gpa:.3f}绩点\n\n"
-        f"学校的排名逻辑是同绩点的可能会被并列为同一名也可能会按顺序排，所以没出成绩时排名也在上下浮动是正常的（因为可能有跟你同绩点也有可能是前面有人同绩点导致你往前一名）"
+        rank_msg = f"你的绩点是{gpa},排名是{rank}\n和前一名差{before_rank_gpa - gpa:.3f}绩点\n与后一名差{gpa - after_rank_gpa:.3f}绩点\n\n学校的排名逻辑是同绩点的可能会被并列为同一名也可能会按顺序排，所以没出成绩时排名也在上下浮动是正常的（因为可能有跟你同绩点也有可能是前面有人同绩点导致你往前一名）"
         with open((os.path.join(folder_path, 'rank.txt')), 'w', encoding='utf-8') as f:
             f.write(str(rank))
         return rank_msg, rank
