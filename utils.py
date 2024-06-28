@@ -77,10 +77,11 @@ def generate_grades_to_msg(gardes):
         grades_msg += "分数：" + garde["grade_score"] + "\n"
         grades_msg += "绩点：" + garde["gpa"] + "\n"
         grades_msg += "学分：" + str(garde["credit"]) + "\n"
-        grades_msg += "详细成绩:" + "\n"
-        for detail in garde["grade_detail"][:-1]:
-            grades_msg += "├──" + detail + "\n"
-        grades_msg += "└──" + garde["grade_detail"][-1] + "\n\n"
+        if garde["grade_detail"]:
+            grades_msg += "详细成绩:" + "\n"
+            for detail in garde["grade_detail"][:-1]:
+                grades_msg += "├──" + detail + "\n"
+            grades_msg += "└──" + garde["grade_detail"][-1] + "\n\n"
     return grades_msg[:-2]
 
 def get_exams_msg(folder_path):
