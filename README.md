@@ -30,14 +30,13 @@ git clone https://github.com/qllokirin/nonebot-plugin-npu.git ./{你的插件目
 
   ```
   pip install requests imgkit==1.0.2 paho-mqtt==1.6.1 bs4 rsa
-  pip install nonebot_plugin_apscheduler
+  nb plugin install nonebot-plugin-apscheduler
   ```
 
 * 3.安装wkhtmltopdf
 
   ```
-  打开https://wkhtmltopdf.org/downloads.html安装	 (Windows)
-  sudo apt-get install wkhtmltopdf				(Ubuntu)
+  打开https://wkhtmltopdf.org/downloads.html安装
   ```
 
 - [ ] nb plugin安装方法
