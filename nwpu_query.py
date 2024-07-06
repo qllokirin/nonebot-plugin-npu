@@ -184,11 +184,18 @@ class NwpuQuery():
     # 查询成绩
     def get_grades(self, folder_path, sem_query=0):
         # 0 是查询全部成绩 是几就是查询后几个学期的
-        URL = 'https://jwxt.nwpu.edu.cn/student/sso-login'
-        self.session.get(URL, headers=self.headers)
-        URL = 'https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet'
-        response = self.session.get(URL, headers=self.headers)
-        self.student_assoc = re.search('semester-index/(.*)', response.url).group(1)
+        while True:
+            URL = 'https://jwxt.nwpu.edu.cn/student/sso-login'
+            self.session.get(URL, headers=self.headers)
+            URL = 'https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet'
+            response = self.session.get(URL, headers=self.headers)
+            match = re.search('semester-index/(.*)', response.url)
+            if match:
+                self.student_assoc = match.group(1)
+                break
+            else:
+                print("未找到匹配的学期索引")
+            # 偶尔会出现 目前怀疑为页面没有加载完全 故多次运行
         response = self.session.get(
             'https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet/semester-index/' + self.student_assoc,
             headers=self.headers)
