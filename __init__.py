@@ -33,7 +33,6 @@ __plugin_meta__ = PluginMetadata(
 )
 driver = get_driver()
 global_config = driver.config
-config = Config.parse_obj(global_config)
 
 nwpu = on_command("翱翔", rule=to_me(), aliases={"npu", "nwpu"}, priority=10, block=True)
 nwpu_query_class = None
