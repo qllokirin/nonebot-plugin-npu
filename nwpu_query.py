@@ -26,12 +26,11 @@ import re
 import time
 import json
 import os
-import smtplib
-from email.mime.text import MIMEText
 import requests
 import rsa
 import base64
 from bs4 import BeautifulSoup
+from nonebot.utils import run_sync
 
 class NwpuQuery():
     def __init__(self):
@@ -58,6 +57,7 @@ class NwpuQuery():
         self.headers3['Content-Type'] = 'application/json; charset=UTF-8'
         self.session = requests.session()
 
+    @run_sync
     def use_recent_cookies_login(self, cookies_path):
         URL = ("https://uis.nwpu.edu.cn/cas/login?service=https%3A%2F%2Fecampus.nwpu.edu.cn"
                "%2F%3Fpath%3Dhttps%3A%2F%2Fecampus.nwpu.edu.cn")
@@ -74,6 +74,7 @@ class NwpuQuery():
         else:
             return False
 
+    @run_sync
     def login(self, username, password, device, folder_path):
         URL = ("https://uis.nwpu.edu.cn/cas/login?service=https%3A%2F%2Fecampus.nwpu.edu.cn"
                "%2F%3Fpath%3Dhttps%3A%2F%2Fecampus.nwpu.edu.cn")
@@ -96,41 +97,55 @@ class NwpuQuery():
             ("Hm_lpvt_" + str1.group(1)): str(int(time.time()))
         }
         self.session.cookies.update(new_cookies)
+        
+        self.execution = re.search('name="execution" value="(.*?)"', response.text)
 
-        if len(response.history) == 0:
-            #  没有重定向到主页，开始输入账号
-            self.execution = re.search('name="execution" value="(.*?)"', response.text)
-            self.fpVisitorId = re.search('name="fpVisitorId" value="(.*?)"', response.text)
+        URL = 'https://uis.nwpu.edu.cn/cas/mfa/detect'
+        data = {
+            'username': self.username,
+            'password': self.password,
+        }
+        response = self.session.post(URL, data=data, headers=self.headers2)
+        self.state_code = json.loads(response.text)['data']['state']
 
-            if device == "securephone" or device == "secureemail":
-                URL = 'https://uis.nwpu.edu.cn/cas/mfa/detect'
-                data = {
-                    'username': self.username,
-                    'password': self.password,
-                }
-                response = self.session.post(URL, data=data, headers=self.headers2)
-                self.state_code = json.loads(response.text)['data']['state']
+        URL = f'https://uis.nwpu.edu.cn/cas/mfa/initByType/{device}?state={self.state_code}'
+        response = self.session.get(URL, headers=self.headers2)
+        if json.loads(response.text)['code'] != 0:
+            return json.loads(response.text)['code']
+        else:
+            gid = json.loads(response.text)['data']['gid']
+            URL = f'https://uis.nwpu.edu.cn/attest/api/guard/{device}/send'
+            self.data = {'gid': gid}
+            self.session.post(URL, data=json.dumps(self.data), headers=self.headers3)
+            return 0
+        
 
-                URL = f'https://uis.nwpu.edu.cn/cas/mfa/initByType/{device}?state={self.state_code}'
-                response = self.session.get(URL, headers=self.headers2)
-                if json.loads(response.text)['code'] != 0:
-                    return json.loads(response.text)['code']
-                else:
-                    gid = json.loads(response.text)['data']['gid']
-                    URL = f'https://uis.nwpu.edu.cn/attest/api/guard/{device}/send'
-                    self.data = {'gid': gid}
-                    self.session.post(URL, data=json.dumps(self.data), headers=self.headers3)
-                    return 0
-            elif device == "qr":
-                URL = 'https://uis.nwpu.edu.cn/cas/qr/init'
-                response = self.session.get(URL, headers=self.headers2)
-                self.state_key = json.loads(response.text)['data']['stateKey']
-                URL = f'https://uis.nwpu.edu.cn/cas/qr/qrcode?r={int(time.time_ns()/1000000)}'
-                response = self.session.get(URL, headers=self.headers)
-                with open(os.path.join(folder_path, 'qr.png'), 'wb') as f:
-                    f.write(response.content)
-                return "wating_to_scan_qr"
+    @run_sync
+    def login_with_qr(self, folder_path):
+        URL = ("https://uis.nwpu.edu.cn/cas/login?service=https%3A%2F%2Fecampus.nwpu.edu.cn"
+               "%2F%3Fpath%3Dhttps%3A%2F%2Fecampus.nwpu.edu.cn")
 
+        response = self.session.get(URL, headers=self.headers)
+        response.encoding = 'utf-8'
+        str1 = re.search('var hmSiteId = "(.*?)"', response.text)
+        new_cookies = {
+            ("Hm_lvt_" + str1.group(1)): str(int(time.time())),
+            ("Hm_lpvt_" + str1.group(1)): str(int(time.time()))
+        }
+        self.session.cookies.update(new_cookies)
+        self.fpVisitorId = re.search('name="fpVisitorId" value="(.*?)"', response.text)
+
+        URL = 'https://uis.nwpu.edu.cn/cas/qr/init'
+        response = self.session.get(URL, headers=self.headers2)
+        self.state_key = json.loads(response.text)['data']['stateKey']
+        URL = f'https://uis.nwpu.edu.cn/cas/qr/qrcode?r={int(time.time_ns()/1000000)}'
+        response = self.session.get(URL, headers=self.headers)
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+        with open(os.path.join(folder_path, 'qr.png'), 'wb') as f:
+            f.write(response.content)
+
+    @run_sync
     def wating_to_scan_qr(self,folder_path):
         URL = 'https://uis.nwpu.edu.cn/cas/qr/comet'
         while True:
@@ -155,6 +170,7 @@ class NwpuQuery():
                     f.write(cookies)
                 return True
 
+    @run_sync
     def verification_code_login(self, captcha, folder_path):
         URL = f'https://uis.nwpu.edu.cn/attest/api/guard/{self.device}/valid'
         self.data['code'] = captcha
@@ -177,11 +193,14 @@ class NwpuQuery():
             }
             self.session.post(URL, data=self.data, headers=self.headers)
             cookies = json.dumps(self.session.cookies.get_dict())
+            if not os.path.exists(folder_path):
+                os.makedirs(folder_path)
             with open((os.path.join(folder_path, 'cookies.txt')), 'w', encoding='utf-8') as f:
                 f.write(cookies)
             return 2
 
     # 查询成绩
+    @run_sync
     def get_grades(self, folder_path, sem_query=0):
         # 0 是查询全部成绩 是几就是查询后几个学期的
         while True:
@@ -230,6 +249,7 @@ class NwpuQuery():
                 json.dump(grades, f, indent=4, ensure_ascii=False, )
         return grades_msg, grades
 
+    @run_sync
     def get_rank(self, folder_path):
         while True:
             URL = 'https://jwxt.nwpu.edu.cn/student/sso-login'
@@ -260,6 +280,7 @@ class NwpuQuery():
         return rank_msg, rank
 
     # 查询考试信息
+    @run_sync
     def get_exams(self, folder_path, is_finished_show=False):
         URL = 'https://jwxt.nwpu.edu.cn/student/sso-login'
         self.session.get(URL, headers=self.headers)

@@ -1,29 +1,21 @@
-from nonebot import get_driver
+from nonebot import logger, get_driver, require, on_command, get_bot
 from nonebot.plugin import PluginMetadata
-from .config import Config
 from nonebot.adapters.onebot.v11 import Bot, Event, Message, MessageSegment, MessageEvent ,GroupMessageEvent, PrivateMessageEvent
 from nonebot.matcher import Matcher
-from nonebot.params import ArgPlainText
-from nonebot import on_command, get_bot
+from nonebot.params import ArgPlainText, CommandArg
 from nonebot.rule import to_me
-from pathlib import Path
 from nonebot.adapters import Message
-from nonebot.params import CommandArg
-from nonebot import require
 from nonebot.utils import run_sync
 require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
-from nonebot import logger
-import os
-import shutil
+from nonebot_plugin_waiter import waiter,prompt
+import os, shutil, json, asyncio
+from typing import List, Union
+from pathlib import Path
+from .config import Config
 from .nwpu_query import NwpuQuery
-import json
-import asyncio
-from typing import Any, List, Tuple, Union
-from .utils import generate_img_from_html
-from .utils import generate_grades_to_msg
-from .utils import get_exams_msg
-from .nwpu_electric import get_campaus,get_building,get_room,get_electric_left
+from .utils import generate_img_from_html, generate_grades_to_msg, get_exams_msg
+from .nwpu_electric import get_campaus, get_building, get_room, get_electric_left
 
 __plugin_meta__ = PluginMetadata(
     name="nonebot-plugin-npu",
@@ -35,9 +27,6 @@ driver = get_driver()
 global_config = driver.config
 
 nwpu = on_command("翱翔", rule=to_me(), aliases={"npu", "nwpu"}, priority=10, block=True)
-nwpu_query_class = None
-folder_path = ""
-account = None
 
 async def send_forward_msg(
     bot: Bot,
@@ -63,33 +52,10 @@ async def send_forward_msg(
         )
 
 
-async def send_private_forward_msg(
-    bot: Bot,
-    user_id: str,
-    name: str,
-    uin: str,
-    user_message: List[Message],
-):
-    def to_json(info: Message):
-        return {
-            "type": "node",
-            "data": {"name": name, "uin": uin, "content": info},
-        }
-
-    messages = [to_json(info) for info in user_message]
-    return await bot.call_api(
-        "send_private_forward_msg", user_id=user_id, messages=messages
-    )
-
 @nwpu.handle()
 async def handel_function(bot: Bot,matcher: Matcher, event: Union[PrivateMessageEvent, GroupMessageEvent], args: Message = CommandArg()):
-    global folder_path
-    global account
-    global nwpu_query_class
-    del nwpu_query_class
     nwpu_query_class = NwpuQuery()
     folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
-    account = []
     if msg := args.extract_plain_text():
         cookies_path = os.path.join(folder_path, 'cookies.txt')
         if os.path.isfile(cookies_path):
@@ -100,33 +66,33 @@ async def handel_function(bot: Bot,matcher: Matcher, event: Union[PrivateMessage
                     await nwpu.finish("暂无考试")
             else:
                 await nwpu.send("正在登入翱翔门户")
-                if nwpu_query_class.use_recent_cookies_login(cookies_path):
+                if await nwpu_query_class.use_recent_cookies_login(cookies_path):
                     if msg == "成绩":
                         sem_query_num = 1
                         await nwpu.send(f"正在获取最近一学期的成绩，请稍等")
-                        _, grades = nwpu_query_class.get_grades(folder_path, sem_query_num)
+                        _, grades = await nwpu_query_class.get_grades(folder_path, sem_query_num)
                         pic_path = os.path.join(folder_path, 'grades.jpg')
                         generate_img_from_html(grades, folder_path)
                         await nwpu.send(MessageSegment.image(Path(pic_path)))
-                        rank_msg, _ = nwpu_query_class.get_rank(folder_path)
+                        rank_msg, _ = await nwpu_query_class.get_rank(folder_path)
                         await nwpu.send(rank_msg)
                         await nwpu.finish()
                     elif msg == "全部成绩":
                         await nwpu.send(f"正在获取全部成绩，请等待")
-                        _, grades = nwpu_query_class.get_grades(folder_path)
+                        _, grades = await nwpu_query_class.get_grades(folder_path)
                         pic_path = os.path.join(folder_path, 'grades.jpg')
                         generate_img_from_html(grades, folder_path)
                         await nwpu.send(MessageSegment.image(Path(pic_path)))
                         await nwpu.finish()
                     elif msg == "排名":
-                        rank_msg, _ = nwpu_query_class.get_rank(folder_path)
+                        rank_msg, _ = await nwpu_query_class.get_rank(folder_path)
                         await nwpu.finish(rank_msg)
                     elif msg == "全部排考" or msg == "全部考试" or msg == "全部排考信息" or msg == "全部考试信息":
                         await nwpu.send(f"正在获取全部考试信息，请等待")
-                        exams_msg, _ = nwpu_query_class.get_exams(folder_path, True)
+                        exams_msg, _ = await nwpu_query_class.get_exams(folder_path, True)
                         if exams_msg:
                             await send_forward_msg(bot, event, "全部考试", str(event.self_id), [MessageSegment.text("你的全部考试有：\n"+exams_msg)])
-                            exams_msg, _ = nwpu_query_class.get_exams(folder_path, False)
+                            exams_msg, _ = await nwpu_query_class.get_exams(folder_path, False)
                             await nwpu.finish()
                         else:
                             await nwpu.finish("暂无考试")
@@ -140,84 +106,92 @@ async def handel_function(bot: Bot,matcher: Matcher, event: Union[PrivateMessage
             await nwpu.finish("你还没有登陆过，请输入 /翱翔 进行登陆")
     else:
         logger.info("全新的账号正在登陆中")
-
-
-@nwpu.got("account_infomation", prompt="请选择登陆方式\n1->账号密码手机验证码登录\n2->账号密码邮箱验证码登录\n3->扫码登录\n登录成功后会自动检测是否有新成绩，但若选择扫码登录，一天后登陆凭证会失效，无法长期监测新成绩\n\n会收集必要的信息用于持久登陆和成绩检测，继续登陆代表你已同意")
-async def get_username(bot : Bot,event: Event, account_infomation: str = ArgPlainText()):
-    account.append(account_infomation)
-    folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
-    if len(account) == 1:
-        if account[0] == "3":
-            account.append("")
-        elif account[0] == "1" or account[0] == "2":
-            await nwpu.reject(f'请输入账号')
-        else:
-            account.pop()
-            await nwpu.reject('回复错误，请重新回复')
-    if len(account) == 2:
-        if int(account[0]) == 1 or int(account[0]) == 2:
-            await nwpu.reject(f'请输入密码')
-        elif int(account[0]) == 3:
-            account.append("")
-        else:
-            await nwpu.finish(f'没有这个登陆方式，此次登陆已终止')
-    if len(account) == 3:
-        if account[-1] == "停止":
-            await nwpu.finish(f'此次登陆已终止')
-        if int(account[0]) == 1 or int(account[0]) == 2:
-            await nwpu.send("正在登陆中...")
-        elif int(account[0]) == 3:
-            await nwpu.send("正在发送二维码...")
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
-        ways = ["securephone", "secureemail", "qr"]
-        status = nwpu_query_class.login(account[1], account[2], ways[int(account[0])-1], folder_path)
-        if status == "wating_to_scan_qr":
+        # 选择登陆方式
+        @waiter(waits=["message"], keep_session=True)
+        async def check_login_in_way(event: Event):
+            if event.get_plaintext() in ["1", "2", "3"]:
+                return event.get_plaintext()
+            else:
+                return False
+        await nwpu.send("请选择登陆方式\n1->账号密码手机验证码登录\n2->账号密码邮箱验证码登录\n3->扫码登录\n登录成功后会自动检测是否有新成绩，但若选择扫码登录，一天后登陆凭证会失效，无法长期监测新成绩\n\n会收集必要的信息用于持久登陆和成绩检测，继续登陆代表你已同意")
+        login_in_way = await check_login_in_way.wait()
+        if login_in_way in ["1","2"]:
+            # 输入账号
+            if (account := await prompt("请输入账号")) is None:
+                await nwpu.finish("已超时，本次登陆结束")
+            account = account.extract_plain_text()
+            # 输入密码
+            await nwpu.send("请输入密码")
+            @waiter(waits=["message"], keep_session=True)
+            async def check_password(event: Event):
+                return event.get_plaintext()
+            async for password in check_password():
+                if password is None:
+                    await nwpu.finish("已超时，本次登陆结束")
+                if password == "停止":
+                    await nwpu.finish("已停止，本次登陆结束")
+                else:
+                    status = await nwpu_query_class.login(account, password, "securephone" if login_in_way == "1" else "secureemail", folder_path)
+                    if status == 0:
+                        # 输入验证码
+                        @waiter(waits=["message"], keep_session=True)
+                        async def check_verification_code(event: Event):
+                            return event.get_plaintext()
+                        logger.info(f"账密正确{account},{password}")
+                        await nwpu.send("登陆中...请输入验证码")
+                        async for verification_code in check_verification_code():
+                            if verification_code is None:
+                                await nwpu.finish("已超时，本次登陆结束")
+                            if verification_code == "停止":
+                                await nwpu.finish("已停止，本次登陆结束")
+                            status = await nwpu_query_class.verification_code_login(verification_code, folder_path)
+                            if status == 2:
+                                await nwpu.send(f"登陆成功！正在获取全部成绩，请稍等")
+                                _, grades = await nwpu_query_class.get_grades(folder_path)
+                                pic_path = os.path.join(folder_path, 'grades.jpg')
+                                generate_img_from_html(grades, folder_path)
+                                await nwpu.send(MessageSegment.image(Path(pic_path)))
+                                rank_msg, _ = await nwpu_query_class.get_rank(folder_path)
+                                await nwpu.send(rank_msg)
+                                exams_msg, _ = await nwpu_query_class.get_exams(folder_path)
+                                exams_msg = ("你的考试有：\n" + exams_msg) if exams_msg else "暂无考试"
+                                await nwpu.finish(exams_msg)
+                            elif status == 3:
+                                await nwpu.send(f'验证码错误，请重新输入验证码\n输入 停止 可以终止此次登陆')
+                                continue
+                            else:
+                                await nwpu.finish(f'出错了，返回状态码{status}，此次登陆已终止')
+                    elif status == -1:
+                        await nwpu.send(f'密码错误，请重新输入密码\n输入 停止 可以终止此次登陆')
+                        continue
+                    else:
+                        await nwpu.finish(f'出错了，返回状态码{status}，此次登陆已终止')
+        elif login_in_way == "3":
+            # 扫码登录
+            await nwpu.send(f'请稍等，获取二维码中...')
+            await nwpu_query_class.login_with_qr(folder_path)
             await nwpu.send(MessageSegment.image(Path(os.path.join(folder_path, 'qr.png'))))
-            if nwpu_query_class.wating_to_scan_qr(folder_path):
-                await nwpu.send(f'扫码登录成功')
-                account.append("")
+            if await nwpu_query_class.wating_to_scan_qr(folder_path):
+                await nwpu.send(f'扫码登录成功！正在获取全部成绩，请稍等')
+                _, grades = await nwpu_query_class.get_grades(folder_path)
+                pic_path = os.path.join(folder_path, 'grades.jpg')
+                generate_img_from_html(grades, folder_path)
+                await nwpu.send(MessageSegment.image(Path(pic_path)))
+                rank_msg, _ = await nwpu_query_class.get_rank(folder_path)
+                await nwpu.send(rank_msg)
+                exams_msg, _ = await nwpu_query_class.get_exams(folder_path)
+                exams_msg = ("你的考试有：\n" + exams_msg) if exams_msg else "暂无考试"
+                await nwpu.finish(exams_msg)
             else:
                 await nwpu.finish(f'扫码出错，时间超时过期or其他原因，此次登陆已终止')
-        elif status == 0:
-            await nwpu.reject(f'登陆中...请输入验证码')
-        elif status == -1:
-            account.pop()
-            await nwpu.reject(f'密码错误，请重新输入密码\n输入 停止 可以终止此次登陆\n多次连续四次密码错误会导致账号锁定，可以在锁定输停止进行重开')
+        elif login_in_way is None:
+            await nwpu.finish("已超时，本次登陆结束")
         else:
-            await nwpu.finish(f'出错了，返回状态码{status}，此次登陆已终止')
-    if len(account) == 4:
-        if account[-1] == "停止":
-            await nwpu.finish(f'此次登陆已终止')
-        if int(account[0]) == 1 or int(account[0]) == 2:
-            await nwpu.send(f'正在输入验证码进行登陆')
-            status = nwpu_query_class.verification_code_login(account[3], folder_path)
-        elif int(account[0]) == 3:
-            status = 2
-        if status == 2:
-            await nwpu.send(f"登陆成功！正在获取全部成绩，请稍等")
-            _, grades = nwpu_query_class.get_grades(folder_path)
-            pic_path = os.path.join(folder_path, 'grades.jpg')
-            generate_img_from_html(grades, folder_path)
-            await nwpu.send(MessageSegment.image(Path(pic_path)))
-            rank_msg, _ = nwpu_query_class.get_rank(folder_path)
-            await nwpu.send(rank_msg)
-            exams_msg, _ = nwpu_query_class.get_exams(folder_path)
-            exams_msg = ("你的考试有：\n" + exams_msg) if exams_msg else "暂无考试"
-            await nwpu.send(exams_msg)
-            await nwpu.finish()
-        elif status == 3:
-            account.pop()
-            await nwpu.reject(f'验证码错误，请重新输入验证码\n输入 停止 可以终止此次登陆')
-        else:
-            await nwpu.finish(f'出错了，返回状态码{status}，此次登陆已终止')
+            await nwpu.finish(f'没有这个登陆方式，请选择1或2或3，此次登陆已终止')
 
 # bot是否在线 最开始启动时是离线的 与ws握手成功后变为True,断连后变为False
 if_connected = False
-@run_sync
-def get_grades_and_ranks_and_exams():
+async def get_grades_and_ranks_and_exams():
     # 获取全部已登陆的QQ号
     qq_all = []
     data_folder_path = os.path.join(os.path.dirname(__file__), 'data')
@@ -242,12 +216,12 @@ def get_grades_and_ranks_and_exams():
         nwpu_query_class_sched = NwpuQuery()
         if if_connected:
             # 登陆
-            if nwpu_query_class_sched.use_recent_cookies_login(cookies_path):
+            if await nwpu_query_class_sched.use_recent_cookies_login(cookies_path):
                 # 先检测成绩变化
                 if os.path.exists(os.path.join(folder_path, 'grades.json')):
                     with open((os.path.join(folder_path, 'grades.json')), 'r', encoding='utf-8') as f:
                         grades_old = json.loads(f.read())
-                    _, grades = nwpu_query_class_sched.get_grades(folder_path)
+                    _, grades = await nwpu_query_class_sched.get_grades(folder_path)
                     new_grades = [grade for grade in grades if grade not in grades_old]
                     if new_grades:
                         pic_path = os.path.join(folder_path, 'grades.jpg')
@@ -255,30 +229,30 @@ def get_grades_and_ranks_and_exams():
                         grades_change.append([qq, pic_path, generate_grades_to_msg(new_grades)])
                         logger.info(f"{qq}出新成绩啦")
                 else:
-                    nwpu_query_class_sched.get_grades(folder_path)
+                    await nwpu_query_class_sched.get_grades(folder_path)
 
                 # 检测rank的变化
                 if os.path.exists(os.path.join(folder_path, 'rank.txt')):
                     with open((os.path.join(folder_path, 'rank.txt')), 'r', encoding='utf-8') as f:
                         rank_old = f.read()
-                    rank_msg, rank = nwpu_query_class_sched.get_rank(folder_path)
+                    rank_msg, rank = await nwpu_query_class_sched.get_rank(folder_path)
                     if str(rank_old) != str(rank):
                         ranks_change.append([qq, rank_old, rank, rank_msg])
                         logger.info(f"{qq}的rank变化啦")
                 else:
-                    nwpu_query_class_sched.get_rank(folder_path)
+                    await nwpu_query_class_sched.get_rank(folder_path)
                 
                 # 检测考试变化
                 if os.path.exists(os.path.join(folder_path, 'exams.json')):
                     with open((os.path.join(folder_path, 'exams.json')), 'r', encoding='utf-8') as f:
                         exams_old = json.loads(f.read())
-                    exams_msg, exams = nwpu_query_class_sched.get_exams(folder_path)
+                    exams_msg, exams = await nwpu_query_class_sched.get_exams(folder_path)
                     new_exams = [exam for exam in exams if exam not in exams_old]
                     if new_exams:
                         exams_change.append([qq, new_exams, exams_msg])
                         logger.info(f"{qq}出新考试啦")
                 else:
-                    nwpu_query_class_sched.get_exams(folder_path)
+                    await nwpu_query_class_sched.get_exams(folder_path)
             else:
                 logger.error(f"{qq}的cookies失效了,删除该文件夹")
                 failure_qq.append(qq)
@@ -321,8 +295,8 @@ async def check_grades_and_exams():
             folder_path = os.path.join(os.path.dirname(__file__), 'data', qq)
             cookies_path = os.path.join(folder_path, 'cookies.txt')
             nwpu_query_class_rank = NwpuQuery()
-            nwpu_query_class_rank.use_recent_cookies_login(cookies_path)
-            rank_msg, _ = nwpu_query_class_rank.get_rank(folder_path)
+            await nwpu_query_class_rank.use_recent_cookies_login(cookies_path)
+            rank_msg, _ = await nwpu_query_class_rank.get_rank(folder_path)
             await bot.send_private_msg(user_id=int(qq), message=f"出新成绩啦！\n{grades_msg}")
             await asyncio.sleep(2)
             await bot.send_private_msg(user_id=int(qq), message=f"{rank_msg}")
@@ -389,6 +363,7 @@ building_all = None
 room_all = None
 @nwpu_electric.got("electric_information", prompt="请选择校区")
 async def get_electric_information(bot: Bot, event: Event, electric_information: str = ArgPlainText()):
+    # TODO 支持并发登陆
     global building_all
     global room_all
     electric_msg.append(electric_information)
