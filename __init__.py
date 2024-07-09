@@ -218,41 +218,44 @@ async def get_grades_and_ranks_and_exams():
             # 登陆
             if await nwpu_query_class_sched.use_recent_cookies_login(cookies_path):
                 # 先检测成绩变化
-                if os.path.exists(os.path.join(folder_path, 'grades.json')):
-                    with open((os.path.join(folder_path, 'grades.json')), 'r', encoding='utf-8') as f:
-                        grades_old = json.loads(f.read())
-                    _, grades = await nwpu_query_class_sched.get_grades(folder_path)
-                    new_grades = [grade for grade in grades if grade not in grades_old]
-                    if new_grades:
-                        pic_path = os.path.join(folder_path, 'grades.jpg')
-                        generate_img_from_html(new_grades, folder_path)
-                        grades_change.append([qq, pic_path, generate_grades_to_msg(new_grades)])
-                        logger.info(f"{qq}出新成绩啦")
-                else:
-                    await nwpu_query_class_sched.get_grades(folder_path)
+                if global_config.npu_if_check_grades:
+                    if os.path.exists(os.path.join(folder_path, 'grades.json')):
+                        with open((os.path.join(folder_path, 'grades.json')), 'r', encoding='utf-8') as f:
+                            grades_old = json.loads(f.read())
+                        _, grades = await nwpu_query_class_sched.get_grades(folder_path)
+                        new_grades = [grade for grade in grades if grade not in grades_old]
+                        if new_grades:
+                            pic_path = os.path.join(folder_path, 'grades.jpg')
+                            generate_img_from_html(new_grades, folder_path)
+                            grades_change.append([qq, pic_path, generate_grades_to_msg(new_grades)])
+                            logger.info(f"{qq}出新成绩啦")
+                    else:
+                        await nwpu_query_class_sched.get_grades(folder_path)
 
                 # 检测rank的变化
-                if os.path.exists(os.path.join(folder_path, 'rank.txt')):
-                    with open((os.path.join(folder_path, 'rank.txt')), 'r', encoding='utf-8') as f:
-                        rank_old = f.read()
-                    rank_msg, rank = await nwpu_query_class_sched.get_rank(folder_path)
-                    if str(rank_old) != str(rank):
-                        ranks_change.append([qq, rank_old, rank, rank_msg])
-                        logger.info(f"{qq}的rank变化啦")
-                else:
-                    await nwpu_query_class_sched.get_rank(folder_path)
+                if global_config.npu_if_check_rank:
+                    if os.path.exists(os.path.join(folder_path, 'rank.txt')):
+                        with open((os.path.join(folder_path, 'rank.txt')), 'r', encoding='utf-8') as f:
+                            rank_old = f.read()
+                        rank_msg, rank = await nwpu_query_class_sched.get_rank(folder_path)
+                        if str(rank_old) != str(rank):
+                            ranks_change.append([qq, rank_old, rank, rank_msg])
+                            logger.info(f"{qq}的rank变化啦")
+                    else:
+                        await nwpu_query_class_sched.get_rank(folder_path)
                 
                 # 检测考试变化
-                if os.path.exists(os.path.join(folder_path, 'exams.json')):
-                    with open((os.path.join(folder_path, 'exams.json')), 'r', encoding='utf-8') as f:
-                        exams_old = json.loads(f.read())
-                    exams_msg, exams = await nwpu_query_class_sched.get_exams(folder_path)
-                    new_exams = [exam for exam in exams if exam not in exams_old]
-                    if new_exams:
-                        exams_change.append([qq, new_exams, exams_msg])
-                        logger.info(f"{qq}出新考试啦")
-                else:
-                    await nwpu_query_class_sched.get_exams(folder_path)
+                if global_config.npu_if_check_exams:
+                    if os.path.exists(os.path.join(folder_path, 'exams.json')):
+                        with open((os.path.join(folder_path, 'exams.json')), 'r', encoding='utf-8') as f:
+                            exams_old = json.loads(f.read())
+                        exams_msg, exams = await nwpu_query_class_sched.get_exams(folder_path)
+                        new_exams = [exam for exam in exams if exam not in exams_old]
+                        if new_exams:
+                            exams_change.append([qq, new_exams, exams_msg])
+                            logger.info(f"{qq}出新考试啦")
+                    else:
+                        await nwpu_query_class_sched.get_exams(folder_path)
             else:
                 logger.error(f"{qq}的cookies失效了,删除该文件夹")
                 failure_qq.append(qq)
@@ -298,18 +301,16 @@ async def check_grades_and_exams():
             await nwpu_query_class_rank.use_recent_cookies_login(cookies_path)
             rank_msg, _ = await nwpu_query_class_rank.get_rank(folder_path)
             await bot.send_private_msg(user_id=int(qq), message=f"出新成绩啦！\n{grades_msg}")
+            logger.info(f"{qq}的新成绩已推送\n{grades_msg}")
             await asyncio.sleep(2)
             await bot.send_private_msg(user_id=int(qq), message=f"{rank_msg}")
             await asyncio.sleep(2)
             await bot.send_private_msg(user_id=int(qq), message=MessageSegment.image(Path(pic_path)))
             await asyncio.sleep(2)
-        '''
-        学校的rank接口变化过于频繁，暂时不推送
-        '''
-        # for qq, rank_old, rank, rank_msg in ranks_change:
-        #     await bot.send_private_msg(user_id=int(qq),
-        #                             message=f"你的rank发生了变化,{rank_old}->{rank}\n{rank_msg}")
-        #     await asyncio.sleep(2)
+        for qq, rank_old, rank, rank_msg in ranks_change:
+            await bot.send_private_msg(user_id=int(qq),
+                                    message=f"你的rank发生了变化,{rank_old}->{rank}\n{rank_msg}")
+            await asyncio.sleep(2)
         for qq, new_exams, exams_msg in exams_change:
             new_courses = [new_exam['course'] for new_exam in new_exams]
             new_course_msg = ""
