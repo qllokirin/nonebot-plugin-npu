@@ -71,11 +71,21 @@ async def handel_function(bot: Bot,matcher: Matcher, event: Union[PrivateMessage
                         sem_query_num = 1
                         await nwpu.send(f"正在获取最近一学期的成绩，请稍等")
                         _, grades = await nwpu_query_class.get_grades(folder_path, sem_query_num)
+                        # 检测是否有新成绩
+                        with open((os.path.join(folder_path, 'grades.json')), 'r', encoding='utf-8') as f:
+                            grades_old = json.loads(f.read())
+                        new_grades = [grade for grade in grades if grade not in grades_old]
+                        if new_grades:
+                            await nwpu.send(f"出新成绩啦!\n{generate_grades_to_msg(new_grades)}")
+                        else:
+                            await nwpu.send("暂无新成绩")
                         pic_path = os.path.join(folder_path, 'grades.jpg')
                         generate_img_from_html(grades, folder_path)
                         await nwpu.send(MessageSegment.image(Path(pic_path)))
                         rank_msg, _ = await nwpu_query_class.get_rank(folder_path)
                         await nwpu.send(rank_msg)
+                        # 获取一下全部成绩以更新信息
+                        await nwpu_query_class.get_grades(folder_path)
                         await nwpu.finish()
                     elif msg == "全部成绩":
                         await nwpu.send(f"正在获取全部成绩，请等待")
