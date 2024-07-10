@@ -330,16 +330,11 @@ async def check_grades_and_exams():
         logger.info(f"bot失联，不检测")
 nwpu_electric = on_command("翱翔电费", rule=to_me(), priority=10, block=True)
 
-electric_msg = []
-campaus_all = None
 @nwpu_electric.handle()
-async def handel_function(matcher: Matcher, event: Event, args: Message = CommandArg()):
-    global campaus_all
-    global electric_msg
+async def handel_function(bot: Bot, event: Event, args: Message = CommandArg()):
     folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
-    electric_msg = []
     if msg := args.extract_plain_text():
         if msg == "查询":
             folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
@@ -353,46 +348,41 @@ async def handel_function(matcher: Matcher, event: Event, args: Message = Comman
                 await nwpu_electric.finish(f'暂未绑定宿舍\n请输入 /翱翔电费绑定 进行绑定')
         elif msg == "绑定":
             logger.info("绑定新的宿舍")
+            information_all = ""
             msg,campaus_all = get_campaus()
-            await nwpu_electric.send(msg)
+            if (campaus_msg := await prompt(msg)) is None:
+                await nwpu_electric.finish("已超时，本次绑定结束")
+            information_all += campaus_all[int(campaus_msg.extract_plain_text())]['name'] + " "
+            folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
+            campaus = campaus_all[int(campaus_msg.extract_plain_text())]['value']
+            msg_list,building_all = get_building(campaus)
+            msg_all = []
+            for msg in msg_list:
+                msg_all.append(MessageSegment.text(msg))
+            await send_forward_msg(bot, event, "building_all", str(event.self_id), msg_all)
+            if (building_msg := await prompt("")) is None:
+                await nwpu.nwpu_electric("已超时，本次绑定结束")
+            information_all += building_all[int(building_msg.extract_plain_text())]['name'] + " "
+            building = building_all[int(building_msg.extract_plain_text())]['value']
+            msg_list,room_all = get_room(campaus,building)
+            msg_all = []
+            for msg in msg_list:
+                msg_all.append(MessageSegment.text(msg))
+            await send_forward_msg(bot, event, "room_all", str(event.self_id), msg_all)
+            if (room_msg := await prompt("")) is None:
+                await nwpu.finish("已超时，本次绑定结束")
+            information_all += room_all[int(room_msg.extract_plain_text())]['name']
+            room = room_all[int(room_msg.extract_plain_text())]['value']
+            data = {'campaus':campaus,'building':building,'room':room}
+            electric_left = get_electric_left(campaus, building, room)
+            with open(os.path.join(folder_path, 'electric.json'), 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=4, ensure_ascii=False)
+            await nwpu_electric.send(f'{information_all}，当前剩余电量：{electric_left}')
+            await nwpu_electric.finish("每天12点会自动定时查询，电费小于25时会自动提示充值")
         else:
-            await nwpu_electric.finish("请输入 /翱翔电费绑定 进行绑定 \n或者/翱翔电费查询 进行电费查询")
+            await nwpu_electric.finish("请输入 /翱翔电费绑定 进行绑定 \n或者 /翱翔电费查询 进行电费查询")
     else:
         await nwpu_electric.finish("请输入 /翱翔电费绑定 进行绑定 \n或者/翱翔电费查询 进行电费查询")
-        
-building_all = None
-room_all = None
-@nwpu_electric.got("electric_information", prompt="请选择校区")
-async def get_electric_information(bot: Bot, event: Event, electric_information: str = ArgPlainText()):
-    # TODO 支持并发登陆
-    global building_all
-    global room_all
-    electric_msg.append(electric_information)
-    folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
-    if len(electric_msg) == 1:
-        electric_msg[0] = campaus_all[int(electric_msg[0])]['value']
-        msg_list,building_all = get_building(electric_msg[0])
-        msg_all = []
-        for msg in msg_list:
-            msg_all.append(MessageSegment.text(msg))
-        await send_forward_msg(bot, event, "building_all", str(event.self_id), msg_all)
-        await nwpu_electric.reject()
-    elif len(electric_msg) == 2:
-        electric_msg[1] = building_all[int(electric_msg[1])]['value']
-        msg_list,room_all = get_room(electric_msg[0],electric_msg[1])
-        msg_all = []
-        for msg in msg_list:
-            msg_all.append(MessageSegment.text(msg))
-        await send_forward_msg(bot, event, "room_all", str(event.self_id), msg_all)
-        await nwpu_electric.reject()
-    elif len(electric_msg) == 3:
-        electric_msg[2] = room_all[int(electric_msg[2])]['value']
-        data = {'campaus':electric_msg[0],'building':electric_msg[1],'room':electric_msg[2]}
-        electric_left = get_electric_left(electric_msg[0],electric_msg[1],electric_msg[2])
-        with open(os.path.join(folder_path, 'electric.json'), 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=4, ensure_ascii=False, )
-        await nwpu_electric.send(f'当前剩余电量：{electric_left}')
-        await nwpu_electric.finish("每天会自动定时查询，电费小于25时会自动提示充值")
 
 @run_sync
 def get_nwpu_electric():
@@ -423,8 +413,7 @@ def get_nwpu_electric():
 @scheduler.scheduled_job("cron", hour="12", id="check_power")
 async def check_electric():
     electric_all = await get_nwpu_electric()
+    bot: Bot = get_bot()
     for qq,electric_left in electric_all:
-        bot: Bot = get_bot()
         await bot.send_private_msg(user_id=int(qq), message=f"电费不足25，当前电费{electric_left}，请及时缴纳")
         await asyncio.sleep(2)
-    
