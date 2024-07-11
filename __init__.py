@@ -163,6 +163,7 @@ async def handel_function(bot: Bot,matcher: Matcher, event: Union[PrivateMessage
                                 await nwpu.send(MessageSegment.image(Path(pic_path)))
                                 rank_msg, _ = await nwpu_query_class.get_rank(folder_path)
                                 await nwpu.send(rank_msg)
+                                await nwpu.send("学校的排名逻辑是同绩点的可能会被并列为同一名也可能会按顺序排，所以没出成绩时排名也在上下浮动是正常的（因为可能有跟你同绩点也有可能是前面有人同绩点导致你往前一名）")
                                 exams_msg, _ = await nwpu_query_class.get_exams(folder_path)
                                 exams_msg = ("你的考试有：\n" + exams_msg) if exams_msg else "暂无考试"
                                 await nwpu.finish(exams_msg)
@@ -189,6 +190,7 @@ async def handel_function(bot: Bot,matcher: Matcher, event: Union[PrivateMessage
                 await nwpu.send(MessageSegment.image(Path(pic_path)))
                 rank_msg, _ = await nwpu_query_class.get_rank(folder_path)
                 await nwpu.send(rank_msg)
+                await nwpu.send("学校的排名逻辑是同绩点的可能会被并列为同一名也可能会按顺序排，所以没出成绩时排名也在上下浮动是正常的（因为可能有跟你同绩点也有可能是前面有人同绩点导致你往前一名）")
                 exams_msg, _ = await nwpu_query_class.get_exams(folder_path)
                 exams_msg = ("你的考试有：\n" + exams_msg) if exams_msg else "暂无考试"
                 await nwpu.finish(exams_msg)

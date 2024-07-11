@@ -212,8 +212,6 @@ class NwpuQuery():
             if match:
                 self.student_assoc = match.group(1)
                 break
-            else:
-                print("未找到匹配的学期索引")
             # 偶尔会出现 目前怀疑为页面没有加载完全 故多次运行
         response = self.session.get(
             'https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet/semester-index/' + self.student_assoc,
@@ -263,18 +261,26 @@ class NwpuQuery():
             # 偶尔会出现 目前怀疑为页面没有加载完全 故多次运行
         URL = 'https://jwxt.nwpu.edu.cn/student/for-std/student-portrait'
         self.session.get(URL, headers=self.headers)
+        URL = 'https://jwxt.nwpu.edu.cn/student/for-std/student-portrait/getStdInfo?bizTypeAssoc=2&cultivateTypeAssoc=1'
+        response = self.session.get(URL, headers=self.headers)
+        grade = response.json()['student']['grade']
+        major_id = response.json()['student']['major']['id']
+        major_name = response.json()['student']['major']['nameZh']
+        URL = f'https://jwxt.nwpu.edu.cn/student/for-std/student-portrait/getGradeAnalysis?bizTypeAssoc=2&grade={grade}&majorAssoc={major_id}&semesterAssoc='
+        response = self.session.get(URL, headers=self.headers)
+        score_range_count = response.json()['scoreRangeCount']
+        total_poeple_num = sum(score_range_count.values())
         URL = f'https://jwxt.nwpu.edu.cn/student/for-std/student-portrait/getMyGrades?studentAssoc={self.student_assoc}&semesterAssoc='
         response = self.session.get(URL, headers=self.headers)
         gpa = response.json()['stdGpaRankDto']['gpa']
         rank = response.json()['stdGpaRankDto']['rank']
         before_rank_gpa = response.json()['stdGpaRankDto']['beforeRankGpa']
         after_rank_gpa = response.json()['stdGpaRankDto']['afterRankGpa']
-        rank_msg = f"你的绩点是{gpa},排名是{rank}"
+        rank_msg = f"你的绩点是{gpa}，在{major_name}中排名是{rank}/{total_poeple_num}({rank/total_poeple_num*100:.2f}%)"
         if before_rank_gpa:
             rank_msg += f"\n和前一名差{before_rank_gpa - gpa:.3f}绩点"
         if after_rank_gpa:
             rank_msg += f"\n与后一名差{gpa - after_rank_gpa:.3f}绩点"
-        rank_msg += f"\n\n学校的排名逻辑是同绩点的可能会被并列为同一名也可能会按顺序排，所以没出成绩时排名也在上下浮动是正常的（因为可能有跟你同绩点也有可能是前面有人同绩点导致你往前一名）"
         with open((os.path.join(folder_path, 'rank.txt')), 'w', encoding='utf-8') as f:
             f.write(str(rank))
         return rank_msg, rank
