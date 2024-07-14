@@ -209,20 +209,21 @@ poke_noetify = on_type(types=PokeNotifyEvent, priority=1)
 async def _(
     event : PokeNotifyEvent
 ):
-    logger.info('被戳一戳力')
-    nwpu_query_class = NwpuQuery()
-    folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
-    cookies_path = os.path.join(folder_path, 'cookies.txt')
-    if os.path.isfile(cookies_path):
-            await poke_noetify.send("正在登入翱翔门户")
-            if await nwpu_query_class.use_recent_cookies_login(cookies_path):
-                    rank_msg, _ = await nwpu_query_class.get_rank(folder_path)
-                    await poke_noetify.finish(rank_msg)
-            else:
-                shutil.rmtree(folder_path)
-                await poke_noetify.finish("登陆失败 cookie过期，请输入 /翱翔 进行登陆")
-    else:
-        await poke_noetify.finish("你还没有登陆过，请输入 /翱翔 进行登陆")
+    if event.is_tome():
+        logger.info('被戳一戳力')
+        nwpu_query_class = NwpuQuery()
+        folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
+        cookies_path = os.path.join(folder_path, 'cookies.txt')
+        if os.path.isfile(cookies_path):
+                await poke_noetify.send("正在登入翱翔门户")
+                if await nwpu_query_class.use_recent_cookies_login(cookies_path):
+                        rank_msg, _ = await nwpu_query_class.get_rank(folder_path)
+                        await poke_noetify.finish(rank_msg)
+                else:
+                    shutil.rmtree(folder_path)
+                    await poke_noetify.finish("登陆失败 cookie过期，请输入 /翱翔 进行登陆")
+        else:
+            await poke_noetify.finish("你还没有登陆过，请输入 /翱翔 进行登陆")
 
 
 # bot是否在线 最开始启动时是离线的 与ws握手成功后变为True,断连后变为False
