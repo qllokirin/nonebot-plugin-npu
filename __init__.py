@@ -391,10 +391,18 @@ async def handel_function(bot: Bot, event: Event, args: Message = CommandArg()):
                 json.dump(data, f, indent=4, ensure_ascii=False)
             await nwpu_electric.send(f'{information_all}，当前剩余电量：{electric_left}')
             await nwpu_electric.finish("每天12点会自动定时查询，电费小于25时会自动提示充值")
+        elif msg == "解绑":
+            folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
+            electric_path = os.path.join(folder_path, 'electric.json')
+            if os.path.exists(electric_path):
+                os.remove(electric_path)
+                await nwpu_electric.finish("已解除宿舍绑定")
+            else:
+                await nwpu_electric.finish(f'暂未绑定宿舍\n请输入 /翱翔电费绑定 进行绑定')
         else:
-            await nwpu_electric.finish("请输入 /翱翔电费绑定 进行绑定 \n或者 /翱翔电费查询 进行电费查询")
+            await nwpu_electric.finish("请输入 /翱翔电费绑定 进行绑定 \n或者 /翱翔电费查询 进行电费查询 /翱翔电费解绑 接触绑定")
     else:
-        await nwpu_electric.finish("请输入 /翱翔电费绑定 进行绑定 \n或者/翱翔电费查询 进行电费查询")
+        await nwpu_electric.finish("请输入 /翱翔电费绑定 进行绑定 \n或者 /翱翔电费查询 进行电费查询 /翱翔电费解绑 接触绑定")
 
 @run_sync
 def get_nwpu_electric():
