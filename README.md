@@ -30,7 +30,7 @@ git clone https://github.com/qllokirin/nonebot-plugin-npu.git ./{你的插件目
 
   ```
   pip install requests imgkit==1.0.2 paho-mqtt==1.6.1 bs4 rsa
-  nb plugin install nonebot-plugin-apscheduler
+  nb plugin install nonebot-plugin-apscheduler nonebot_plugin_waiter
   ```
 
 * 3.安装wkhtmltopdf
@@ -41,7 +41,21 @@ git clone https://github.com/qllokirin/nonebot-plugin-npu.git ./{你的插件目
 
 - [ ] nb plugin安装方法
 
-在`.env.prod`中新增字段`npu_check_time=30`，代表每多少分钟检测一次成绩
+在`.env.prod`/`.env`中写入以下字段，参考如下
+
+```
+npu_check_time=10
+npu_if_check_grades=true
+npu_if_check_rank=true
+npu_if_check_exams=false
+```
+
+|        参数         |  值  |          说明          |
+| :-----------------: | :--: | :--------------------: |
+|   npu_check_time    | int  | 每多少分钟检测一次成绩 |
+| npu_if_check_grades | bool |      是否检测成绩      |
+|  npu_if_check_rank  | bool |      是否检测排名      |
+| npu_if_check_exams  | bool |     是否检测新考试     |
 
 # 🎉 使用
 
