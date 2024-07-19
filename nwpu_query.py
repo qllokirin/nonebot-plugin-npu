@@ -326,3 +326,33 @@ class NwpuQuery():
         with open(os.path.join(folder_path, 'exams.json'), 'w', encoding='utf-8') as f:
             json.dump(exams, f, indent=4, ensure_ascii=False, )
         return exams_msg, exams
+    
+    # 获取课表信息
+    @run_sync
+    def get_course_table(self, folder_path):
+        while True:
+            URL = 'https://jwxt.nwpu.edu.cn/student/sso-login'
+            self.session.get(URL, headers=self.headers)
+            URL = 'https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet'
+            response = self.session.get(URL, headers=self.headers)
+            match = re.search('semester-index/(.*)', response.url)
+            if match:
+                self.student_assoc = match.group(1)
+                break
+            # 偶尔会出现 目前怀疑为页面没有加载完全 故多次运行
+        URL = 'https://jwxt.nwpu.edu.cn/student/for-std/course-table'
+        response = self.session.get(URL, headers=self.headers)
+        all_semesters = BeautifulSoup(response.text, 'html.parser').find('select', {'id': 'allSemesters'}).find_all('option')
+        course_table_path = ''
+        course_table_name = ''
+        # 遍历学期，找到有课的学期就保存
+        for semester in all_semesters:
+            URL = f"https://jwxt.nwpu.edu.cn/student/for-std/course-table/semester/{semester['value']}/print-data/{self.student_assoc}?hasExperiment=true"
+            response = self.session.get(URL, headers=self.headers)
+            if response.json()["studentTableVm"]["credits"] != 0:
+                course_table_path = os.path.join(folder_path, f'{semester.text}.html')
+                course_table_name = f"{semester.text}.html"
+                with open(course_table_path, 'w', encoding='utf-8') as f:
+                    f.write(response.text)
+                break
+        return course_table_path, course_table_name

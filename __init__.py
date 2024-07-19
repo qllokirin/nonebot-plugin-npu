@@ -106,6 +106,26 @@ async def handel_function(bot: Bot,matcher: Matcher, event: Union[PrivateMessage
                             await nwpu.finish()
                         else:
                             await nwpu.finish("暂无考试")
+                    elif msg == "课表":
+                        await nwpu.send("正在获取最近有课的一学期的课表，请稍等")
+                        course_table_path, course_table_name = await nwpu_query_class.get_course_table(folder_path)
+                        if course_table_path:
+                            await nwpu.send("发送中")
+                            if isinstance(event, GroupMessageEvent):
+                                await bot.call_api(
+                                    "upload_group_file", group_id=event.group_id,  file=course_table_path, name=course_table_name
+                                )
+                            else:
+                                await bot.call_api(
+                                    "upload_private_file", user_id=event.user_id, file=course_table_path, name=course_table_name
+                                )
+                            await nwpu.send("此文件需要配合wake up软件使用\n"
+                                            "点击->用其他应用打开->选择wake up导入到课程表\n"
+                                            "覆盖当前课表->选择学校/教务类型->选择西工大->点击右下角导入按钮即可\n"
+                                            "第一次使用可能需要自己手动调整一下课表时间")
+                            await nwpu.finish()
+                        else:
+                            nwpu.finish("暂无课表")
                     else:
                         await nwpu.finish("那是什么 我不知道\n"
                                         "发送 help 可获取全部指令")
