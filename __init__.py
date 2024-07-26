@@ -133,9 +133,9 @@ async def handel_function(bot: Bot, event: Union[PrivateMessageEvent, GroupMessa
                                             "发送 help 可获取全部指令")
                     else:
                         shutil.rmtree(folder_path)
-                        await nwpu.finish("登陆失败 cookie过期，请输入 /翱翔 进行登陆")
+                        await nwpu.finish("登陆失败 cookie过期，请输入 翱翔 进行登陆")
             else:
-                await nwpu.finish("你还没有登陆过，请输入 /翱翔 进行登陆")
+                await nwpu.finish("你还没有登陆过，请输入 翱翔 进行登陆")
         else:
             logger.info("全新的账号正在登陆中")
             # 选择登陆方式
@@ -255,9 +255,9 @@ async def _(
                             await poke_noetify.finish(rank_msg)
                     else:
                         shutil.rmtree(folder_path)
-                        await poke_noetify.finish("登陆失败 cookie过期，请输入 /翱翔 进行登陆")
-            else:
-                await poke_noetify.finish("你还没有登陆过，请输入 /翱翔 进行登陆")
+                        await poke_noetify.finish("登陆失败 cookie过期，请输入 翱翔 进行登陆")
+            else: 
+                await poke_noetify.finish("你还没有登陆过，请输入 翱翔 进行登陆")
     except MatcherException:
         raise
     except Exception as e:
@@ -406,7 +406,7 @@ async def check_grades_and_exams():
                                         message=f"你的全部未结束考试有：\n"+exams_msg)
                 await asyncio.sleep(2)
             for qq in failure_qq:
-                await bot.send_private_msg(user_id=int(qq), message=f"你的登陆信息已失效，请输入 /翱翔 重新登陆")
+                await bot.send_private_msg(user_id=int(qq), message=f"你的登陆信息已失效，请输入 翱翔 重新登陆")
             logger.info(f"本次检测完毕")
         else:
             logger.info(f"bot失联，不检测")
@@ -438,7 +438,7 @@ async def handel_function(bot: Bot, event: Event, args: Message = CommandArg()):
                     electric_left = get_electric_left(electric_information['campaus'],electric_information['building'],electric_information['room'])
                     await nwpu_electric.finish(f'电费剩余{electric_left}')
                 else:
-                    await nwpu_electric.finish(f'暂未绑定宿舍\n请输入 /翱翔电费绑定 进行绑定')
+                    await nwpu_electric.finish(f'暂未绑定宿舍\n请输入 翱翔电费绑定 进行绑定')
             elif msg == "绑定":
                 logger.info("绑定新的宿舍")
                 information_all = ""
@@ -479,11 +479,11 @@ async def handel_function(bot: Bot, event: Event, args: Message = CommandArg()):
                     os.remove(electric_path)
                     await nwpu_electric.finish("已解除宿舍绑定")
                 else:
-                    await nwpu_electric.finish(f'暂未绑定宿舍\n请输入 /翱翔电费绑定 进行绑定')
+                    await nwpu_electric.finish(f'暂未绑定宿舍\n请输入 翱翔电费绑定 进行绑定')
             else:
-                await nwpu_electric.finish("请输入 /翱翔电费绑定 进行绑定 \n或者 /翱翔电费查询 进行电费查询 /翱翔电费解绑 接触绑定")
+                await nwpu_electric.finish("请输入 翱翔电费绑定 进行绑定 \n或者 翱翔电费查询 进行电费查询 翱翔电费解绑 接触绑定")
         else:
-            await nwpu_electric.finish("请输入 /翱翔电费绑定 进行绑定 \n或者 /翱翔电费查询 进行电费查询 /翱翔电费解绑 接触绑定")
+            await nwpu_electric.finish("请输入 翱翔电费绑定 进行绑定 \n或者 翱翔电费查询 进行电费查询 翱翔电费解绑 接触绑定")
     except MatcherException:
         raise
     except Exception as e:
@@ -527,7 +527,7 @@ async def check_electric():
         electric_all = await get_nwpu_electric()
         bot: Bot = get_bot()
         for qq,electric_left in electric_all:
-            await bot.send_private_msg(user_id=int(qq), message=f"电费不足25，当前电费{electric_left}，请及时缴纳")
+            await bot.send_private_msg(user_id=int(qq), message=f"电费不足25，当前电费{electric_left}，请及时缴纳\n若不想收到提醒消息，可发送 翱翔电费解绑 进行解除绑定")
             await asyncio.sleep(2)
     except MatcherException:
         raise
