@@ -379,7 +379,9 @@ async def check_grades_and_exams():
             else:
                 logger.info("没有data文件夹")
             tasks = [get_grades_and_ranks_and_exams(qq) for qq in qq_all]
-            for grades_change, ranks_change, exams_change, failure_qq in await asyncio.gather(*tasks):
+            running_tasks = [asyncio.create_task(task) for task in tasks]
+            for running_task in running_tasks:
+                grades_change, ranks_change, exams_change, failure_qq = await running_task
                 for qq, pic_path, grades_msg in grades_change:
                     folder_path = os.path.join(os.path.dirname(__file__), 'data', qq)
                     cookies_path = os.path.join(folder_path, 'cookies.txt')
