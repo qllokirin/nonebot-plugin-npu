@@ -272,18 +272,21 @@ class NwpuQuery():
         total_poeple_num = sum(score_range_count.values())
         URL = f'https://jwxt.nwpu.edu.cn/student/for-std/student-portrait/getMyGrades?studentAssoc={self.student_assoc}&semesterAssoc='
         response = self.session.get(URL, headers=self.headers)
-        gpa = response.json()['stdGpaRankDto']['gpa']
-        rank = response.json()['stdGpaRankDto']['rank']
-        before_rank_gpa = response.json()['stdGpaRankDto']['beforeRankGpa']
-        after_rank_gpa = response.json()['stdGpaRankDto']['afterRankGpa']
-        rank_msg = f"你的绩点是{gpa}，在{major_name}中排名是{rank}/{total_poeple_num}({rank/total_poeple_num*100:.2f}%)"
-        if before_rank_gpa:
-            rank_msg += f"\n和前一名差{before_rank_gpa - gpa:.3f}绩点"
-        if after_rank_gpa:
-            rank_msg += f"\n与后一名差{gpa - after_rank_gpa:.3f}绩点"
-        with open((os.path.join(folder_path, 'rank.txt')), 'w', encoding='utf-8') as f:
-            f.write(str(rank))
-        return rank_msg, rank
+        if response.json()['stdGpaRankDto'] is None:
+            return "暂无排名，xdx先体验下大学生活喵", 0
+        else:
+            gpa = response.json()['stdGpaRankDto']['gpa']
+            rank = response.json()['stdGpaRankDto']['rank']
+            before_rank_gpa = response.json()['stdGpaRankDto']['beforeRankGpa']
+            after_rank_gpa = response.json()['stdGpaRankDto']['afterRankGpa']
+            rank_msg = f"你的绩点是{gpa}，在{major_name}中排名是{rank}/{total_poeple_num}({rank/total_poeple_num*100:.2f}%)"
+            if before_rank_gpa:
+                rank_msg += f"\n和前一名差{before_rank_gpa - gpa:.3f}绩点"
+            if after_rank_gpa:
+                rank_msg += f"\n与后一名差{gpa - after_rank_gpa:.3f}绩点"
+            with open((os.path.join(folder_path, 'rank.txt')), 'w', encoding='utf-8') as f:
+                f.write(str(rank))
+            return rank_msg, rank
 
     # 查询考试信息
     @run_sync

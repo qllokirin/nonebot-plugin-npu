@@ -73,28 +73,37 @@ async def handel_function(bot: Bot, event: Union[PrivateMessageEvent, GroupMessa
                             sem_query_num = 1
                             await nwpu.send(f"正在获取最近一学期的成绩，请稍等")
                             _, grades = await nwpu_query_class.get_grades(folder_path, sem_query_num)
-                            # 检测是否有新成绩
-                            with open((os.path.join(folder_path, 'grades.json')), 'r', encoding='utf-8') as f:
-                                grades_old = json.loads(f.read())
-                            new_grades = [grade for grade in grades if grade not in grades_old]
-                            if new_grades:
-                                await nwpu.send(f"出新成绩啦!\n{generate_grades_to_msg(new_grades)}")
+                            if grades:
+                                pic_path = os.path.join(folder_path, 'grades.jpg')
+                                generate_img_from_html(grades, folder_path)
+                                await nwpu.send(MessageSegment.image(Path(pic_path)))
                             else:
-                                await nwpu.send("暂无新成绩")
-                            pic_path = os.path.join(folder_path, 'grades.jpg')
-                            generate_img_from_html(grades, folder_path)
-                            await nwpu.send(MessageSegment.image(Path(pic_path)))
+                                await nwpu.send("最近的一学期暂无成绩喵")
                             rank_msg, _ = await nwpu_query_class.get_rank(folder_path)
                             await nwpu.send(rank_msg)
-                            # 获取一下全部成绩以更新信息
-                            await nwpu_query_class.get_grades(folder_path)
+                            # 同时检测是否有新成绩 因为只获取一学期的成绩不会写入文件
+                            with open((os.path.join(folder_path, 'grades.json')), 'r', encoding='utf-8') as f:
+                                grades_old = json.loads(f.read())
+                            _, grades = await nwpu_query_class.get_grades(folder_path)
+                            new_grades = [grade for grade in grades if grade not in grades_old]
+                            if new_grades:
+                                await nwpu.send(f"有新成绩\n{generate_grades_to_msg(new_grades)}")
                             await nwpu.finish()
                         elif msg == "全部成绩":
                             await nwpu.send(f"正在获取全部成绩，请等待")
+                            # 同时检测是否有新成绩
+                            with open((os.path.join(folder_path, 'grades.json')), 'r', encoding='utf-8') as f:
+                                grades_old = json.loads(f.read())
                             _, grades = await nwpu_query_class.get_grades(folder_path)
-                            pic_path = os.path.join(folder_path, 'grades.jpg')
-                            generate_img_from_html(grades, folder_path)
-                            await nwpu.send(MessageSegment.image(Path(pic_path)))
+                            if grades:
+                                pic_path = os.path.join(folder_path, 'grades.jpg')
+                                generate_img_from_html(grades, folder_path)
+                                await nwpu.send(MessageSegment.image(Path(pic_path)))
+                            else:
+                                await nwpu.send("无成绩喵")
+                            new_grades = [grade for grade in grades if grade not in grades_old]
+                            if new_grades:
+                                await nwpu.send(f"有新成绩\n{generate_grades_to_msg(new_grades)}")
                             await nwpu.finish()
                         elif msg == "排名":
                             rank_msg, _ = await nwpu_query_class.get_rank(folder_path)
@@ -169,7 +178,6 @@ async def handel_function(bot: Bot, event: Union[PrivateMessageEvent, GroupMessa
                             @waiter(waits=["message"], keep_session=True)
                             async def check_verification_code(event: Event):
                                 return event.get_plaintext()
-                            logger.info(f"账密正确{account},{password}")
                             await nwpu.send("登陆中...请输入验证码")
                             async for verification_code in check_verification_code():
                                 if verification_code is None:
@@ -272,79 +280,63 @@ async def _(
 
 # bot是否在线 最开始启动时是离线的 与ws握手成功后变为True,断连后变为False
 if_connected = False
-async def get_grades_and_ranks_and_exams():
-    # 获取全部已登陆的QQ号
-    qq_all = []
-    data_folder_path = os.path.join(os.path.dirname(__file__), 'data')
-    if os.path.exists(data_folder_path):
-        qq_all = [f for f in os.listdir(data_folder_path) if os.path.isdir(os.path.join(data_folder_path, f))]
-        if qq_all:
-            logger.info(f"已登录的全部QQ号：{qq_all}")
-        else:
-            logger.info("没有账号登陆")
-    else:
-        logger.info("没有data文件夹")
-    # qq_all = [] # 若不想给所有的人都推送，硬编码改一下值即可 str类型
-
+async def get_grades_and_ranks_and_exams(qq):
     grades_change = []
     ranks_change = []
     exams_change = []
     failure_qq = []
 
-    for qq in qq_all:
-        folder_path = os.path.join(os.path.dirname(__file__), 'data', qq)
-        cookies_path = os.path.join(folder_path, 'cookies.txt')
-        nwpu_query_class_sched = NwpuQuery()
-        if if_connected:
-            # 登陆
-            if await nwpu_query_class_sched.use_recent_cookies_login(cookies_path):
-                # 先检测成绩变化
-                if global_config.npu_if_check_grades:
-                    if os.path.exists(os.path.join(folder_path, 'grades.json')):
-                        with open((os.path.join(folder_path, 'grades.json')), 'r', encoding='utf-8') as f:
-                            grades_old = json.loads(f.read())
-                        _, grades = await nwpu_query_class_sched.get_grades(folder_path)
-                        new_grades = [grade for grade in grades if grade not in grades_old]
-                        if new_grades:
-                            pic_path = os.path.join(folder_path, 'grades.jpg')
-                            generate_img_from_html(new_grades, folder_path)
-                            grades_change.append([qq, pic_path, generate_grades_to_msg(new_grades)])
-                            logger.info(f"{qq}出新成绩啦")
-                    else:
-                        await nwpu_query_class_sched.get_grades(folder_path)
+    folder_path = os.path.join(os.path.dirname(__file__), 'data', qq)
+    cookies_path = os.path.join(folder_path, 'cookies.txt')
+    nwpu_query_class_sched = NwpuQuery()
+    if if_connected:
+        # 登陆
+        if await nwpu_query_class_sched.use_recent_cookies_login(cookies_path):
+            # 先检测成绩变化
+            if global_config.npu_if_check_grades:
+                if os.path.exists(os.path.join(folder_path, 'grades.json')):
+                    with open((os.path.join(folder_path, 'grades.json')), 'r', encoding='utf-8') as f:
+                        grades_old = json.loads(f.read())
+                    _, grades = await nwpu_query_class_sched.get_grades(folder_path)
+                    new_grades = [grade for grade in grades if grade not in grades_old]
+                    if new_grades:
+                        pic_path = os.path.join(folder_path, 'grades.jpg')
+                        generate_img_from_html(new_grades, folder_path)
+                        grades_change.append([qq, pic_path, generate_grades_to_msg(new_grades)])
+                        logger.info(f"{qq}出新成绩啦")
+                else:
+                    await nwpu_query_class_sched.get_grades(folder_path)
 
-                # 检测rank的变化
-                if global_config.npu_if_check_rank:
-                    if os.path.exists(os.path.join(folder_path, 'rank.txt')):
-                        with open((os.path.join(folder_path, 'rank.txt')), 'r', encoding='utf-8') as f:
-                            rank_old = f.read()
-                        rank_msg, rank = await nwpu_query_class_sched.get_rank(folder_path)
-                        if str(rank_old) != str(rank):
-                            ranks_change.append([qq, rank_old, rank, rank_msg])
-                            logger.info(f"{qq}的rank变化啦")
-                    else:
-                        await nwpu_query_class_sched.get_rank(folder_path)
-                
-                # 检测考试变化
-                if global_config.npu_if_check_exams:
-                    if os.path.exists(os.path.join(folder_path, 'exams.json')):
-                        with open((os.path.join(folder_path, 'exams.json')), 'r', encoding='utf-8') as f:
-                            exams_old = json.loads(f.read())
-                        exams_msg, exams = await nwpu_query_class_sched.get_exams(folder_path)
-                        new_exams = [exam for exam in exams if exam not in exams_old]
-                        if new_exams:
-                            exams_change.append([qq, new_exams, exams_msg])
-                            logger.info(f"{qq}出新考试啦")
-                    else:
-                        await nwpu_query_class_sched.get_exams(folder_path)
-            else:
-                logger.error(f"{qq}的cookies失效了,删除该文件夹")
-                failure_qq.append(qq)
-                shutil.rmtree(folder_path)
+            # 检测rank的变化
+            if global_config.npu_if_check_rank:
+                if os.path.exists(os.path.join(folder_path, 'rank.txt')):
+                    with open((os.path.join(folder_path, 'rank.txt')), 'r', encoding='utf-8') as f:
+                        rank_old = f.read()
+                    rank_msg, rank = await nwpu_query_class_sched.get_rank(folder_path)
+                    if str(rank_old) != str(rank):
+                        ranks_change.append([qq, rank_old, rank, rank_msg])
+                        logger.info(f"{qq}的rank变化啦")
+                else:
+                    await nwpu_query_class_sched.get_rank(folder_path)
+            
+            # 检测考试变化
+            if global_config.npu_if_check_exams:
+                if os.path.exists(os.path.join(folder_path, 'exams.json')):
+                    with open((os.path.join(folder_path, 'exams.json')), 'r', encoding='utf-8') as f:
+                        exams_old = json.loads(f.read())
+                    exams_msg, exams = await nwpu_query_class_sched.get_exams(folder_path)
+                    new_exams = [exam for exam in exams if exam not in exams_old]
+                    if new_exams:
+                        exams_change.append([qq, new_exams, exams_msg])
+                        logger.info(f"{qq}出新考试啦")
+                else:
+                    await nwpu_query_class_sched.get_exams(folder_path)
         else:
-            logger.info("bot失联，终止更新")
-            break
-        del nwpu_query_class_sched
+            logger.error(f"{qq}的cookies失效了,删除该文件夹")
+            failure_qq.append(qq)
+            shutil.rmtree(folder_path)
+    else:
+        logger.info("bot失联，终止更新")
     return grades_change, ranks_change, exams_change, failure_qq
 
 
@@ -375,38 +367,50 @@ async def check_grades_and_exams():
     try:
         if if_connected:
             bot: Bot = get_bot()
-            grades_change, ranks_change, exams_change, failure_qq = await get_grades_and_ranks_and_exams()
-            for qq, pic_path, grades_msg in grades_change:
-                folder_path = os.path.join(os.path.dirname(__file__), 'data', qq)
-                cookies_path = os.path.join(folder_path, 'cookies.txt')
-                nwpu_query_class_rank = NwpuQuery()
-                await nwpu_query_class_rank.use_recent_cookies_login(cookies_path)
-                rank_msg, _ = await nwpu_query_class_rank.get_rank(folder_path)
-                await bot.send_private_msg(user_id=int(qq), message=f"出新成绩啦！\n{grades_msg}")
-                logger.info(f"{qq}的新成绩已推送\n{grades_msg}")
-                await asyncio.sleep(2)
-                await bot.send_private_msg(user_id=int(qq), message=f"{rank_msg}")
-                await asyncio.sleep(2)
-                await bot.send_private_msg(user_id=int(qq), message=MessageSegment.image(Path(pic_path)))
-                await asyncio.sleep(2)
-            for qq, rank_old, rank, rank_msg in ranks_change:
-                await bot.send_private_msg(user_id=int(qq),
-                                        message=f"你的rank发生了变化,{rank_old}->{rank}\n{rank_msg}")
-                await asyncio.sleep(2)
-            for qq, new_exams, exams_msg in exams_change:
-                new_courses = [new_exam['course'] for new_exam in new_exams]
-                new_course_msg = ""
-                for new_course in new_courses:
-                    new_course_msg += new_course + "\n"
-                new_course_msg = new_course_msg[:-1]
-                await bot.send_private_msg(user_id=int(qq),
-                                        message=f"你有新的考试有：\n"+new_course_msg)
-                await asyncio.sleep(2)
-                await bot.send_private_msg(user_id=int(qq),
-                                        message=f"你的全部未结束考试有：\n"+exams_msg)
-                await asyncio.sleep(2)
-            for qq in failure_qq:
-                await bot.send_private_msg(user_id=int(qq), message=f"你的登陆信息已失效，请输入 翱翔 重新登陆")
+            # 获取全部已登陆的QQ号
+            qq_all = []
+            data_folder_path = os.path.join(os.path.dirname(__file__), 'data')
+            if os.path.exists(data_folder_path):
+                qq_all = [f for f in os.listdir(data_folder_path) if os.path.isdir(os.path.join(data_folder_path, f))]
+                if qq_all:
+                    logger.info(f"已登录的全部QQ号：{qq_all}")
+                else:
+                    logger.info("没有账号登陆")
+            else:
+                logger.info("没有data文件夹")
+            tasks = [get_grades_and_ranks_and_exams(qq) for qq in qq_all]
+            for grades_change, ranks_change, exams_change, failure_qq in await asyncio.gather(*tasks):
+                for qq, pic_path, grades_msg in grades_change:
+                    folder_path = os.path.join(os.path.dirname(__file__), 'data', qq)
+                    cookies_path = os.path.join(folder_path, 'cookies.txt')
+                    nwpu_query_class_rank = NwpuQuery()
+                    await nwpu_query_class_rank.use_recent_cookies_login(cookies_path)
+                    rank_msg, _ = await nwpu_query_class_rank.get_rank(folder_path)
+                    await bot.send_private_msg(user_id=int(qq), message=f"出新成绩啦！\n{grades_msg}")
+                    logger.info(f"{qq}的新成绩已推送\n{grades_msg}")
+                    await asyncio.sleep(2)
+                    await bot.send_private_msg(user_id=int(qq), message=f"{rank_msg}")
+                    await asyncio.sleep(2)
+                    await bot.send_private_msg(user_id=int(qq), message=MessageSegment.image(Path(pic_path)))
+                    await asyncio.sleep(2)
+                for qq, rank_old, rank, rank_msg in ranks_change:
+                    await bot.send_private_msg(user_id=int(qq),
+                                            message=f"你的rank发生了变化,{rank_old}->{rank}\n{rank_msg}")
+                    await asyncio.sleep(2)
+                for qq, new_exams, exams_msg in exams_change:
+                    new_courses = [new_exam['course'] for new_exam in new_exams]
+                    new_course_msg = ""
+                    for new_course in new_courses:
+                        new_course_msg += new_course + "\n"
+                    new_course_msg = new_course_msg[:-1]
+                    await bot.send_private_msg(user_id=int(qq),
+                                            message=f"你有新的考试有：\n"+new_course_msg)
+                    await asyncio.sleep(2)
+                    await bot.send_private_msg(user_id=int(qq),
+                                            message=f"你的全部未结束考试有：\n"+exams_msg)
+                    await asyncio.sleep(2)
+                for qq in failure_qq:
+                    await bot.send_private_msg(user_id=int(qq), message=f"你的登陆信息已失效，请输入 翱翔 重新登陆")
             logger.info(f"本次检测完毕")
         else:
             logger.info(f"bot失联，不检测")
