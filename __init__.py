@@ -137,6 +137,23 @@ async def handel_function(bot: Bot, event: Union[PrivateMessageEvent, GroupMessa
                                 await nwpu.finish()
                             else:
                                 nwpu.finish("暂无课表")
+                        elif msg == "培养方案完成情况":
+                            await nwpu.send("正在计算培养方案完成情况，请稍等")
+                            xlsx_path, xlsx_name = await nwpu_query_class.get_training_program(folder_path)
+                            await nwpu.send("发送中")
+                            if isinstance(event, GroupMessageEvent):
+                                await bot.call_api(
+                                    "upload_group_file", group_id=event.group_id,  file=xlsx_path, name=xlsx_name
+                                )
+                            else:
+                                await bot.call_api(
+                                    "upload_private_file", user_id=event.user_id, file=xlsx_path, name=xlsx_name
+                                )
+                            await nwpu.send("未完成课程为红色填充\n"
+                                            "未完成模块为黄色填充\n"
+                                            "未匹配课程为灰色填充\n"
+                                            "已匹配课程为蓝色字体~")
+                            await nwpu.finish()
                         else:
                             await nwpu.finish("那是什么 我不知道\n"
                                             "发送 help 可获取全部指令")

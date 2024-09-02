@@ -31,6 +31,9 @@ import rsa
 import base64
 from bs4 import BeautifulSoup
 from nonebot.utils import run_sync
+import openpyxl
+import copy
+from .utils import handle_training_program_data, handle_completed_and_incomplete_course, del_zero_required_credits_group, max_dict_depth, write_to_excel, fromat_excel
 
 class NwpuQuery():
     def __init__(self):
@@ -212,6 +215,9 @@ class NwpuQuery():
             if match:
                 self.student_assoc = match.group(1)
                 break
+            time.sleep(2)
+            self.session = requests.session()
+            self.use_recent_cookies_login(os.path.join(folder_path, 'cookies.txt'))
             # 偶尔会出现 目前怀疑为页面没有加载完全 故多次运行
         response = self.session.get(
             'https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet/semester-index/' + self.student_assoc,
@@ -227,6 +233,8 @@ class NwpuQuery():
             response = json.loads(response.text)['semesterId2studentGrades'][sem]
             for course in response:
                 name = course['course']['nameZh']
+                code = course['course']['code']
+                course_type = course['courseType']['nameZh']
                 grade_score = course['gaGrade']
                 gpa = str(course['gp'])
                 credit = course['course']['credits']
@@ -234,6 +242,8 @@ class NwpuQuery():
                 grades_msg.append(f'{name}, {grade_score}, {gpa}, {credit}, {grade_detail}')
                 grades_one_subject = {
                     "name": name,
+                    "code": code,
+                    "course_type": course_type,
                     "grade_score": grade_score,
                     "gpa": gpa,
                     "credit": credit,
@@ -258,6 +268,9 @@ class NwpuQuery():
             if match:
                 self.student_assoc = match.group(1)
                 break
+            time.sleep(2)
+            self.session = requests.session()
+            self.use_recent_cookies_login(os.path.join(folder_path, 'cookies.txt'))
             # 偶尔会出现 目前怀疑为页面没有加载完全 故多次运行
         URL = 'https://jwxt.nwpu.edu.cn/student/for-std/student-portrait'
         self.session.get(URL, headers=self.headers)
@@ -342,6 +355,9 @@ class NwpuQuery():
             if match:
                 self.student_assoc = match.group(1)
                 break
+            time.sleep(2)
+            self.session = requests.session()
+            self.use_recent_cookies_login(os.path.join(folder_path, 'cookies.txt'))
             # 偶尔会出现 目前怀疑为页面没有加载完全 故多次运行
         URL = 'https://jwxt.nwpu.edu.cn/student/for-std/course-table'
         response = self.session.get(URL, headers=self.headers)
@@ -359,3 +375,49 @@ class NwpuQuery():
                     f.write(response.text)
                 break
         return course_table_path, course_table_name
+    
+    # 获取培养方案完成情况
+    @run_sync
+    def get_training_program(self, folder_path):
+        while True:
+            URL = 'https://jwxt.nwpu.edu.cn/student/sso-login'
+            self.session.get(URL, headers=self.headers)
+            URL = 'https://jwxt.nwpu.edu.cn/student/for-std/program'
+            response = self.session.get(URL, headers=self.headers)
+            match = re.search('info/(.*)', response.url)
+            if match:
+                self.student_assoc = match.group(1)
+                break
+            time.sleep(2)
+            self.session = requests.session()
+            self.use_recent_cookies_login(os.path.join(folder_path, 'cookies.txt'))
+            # 偶尔会出现 目前怀疑为页面没有加载完全 故多次运行
+        print(self.student_assoc)
+        URL = f'https://jwxt.nwpu.edu.cn/student/for-std/program/root-module-json/{self.student_assoc}'
+        response = self.session.get(URL, headers=self.headers2)
+        # handle_results 的值
+        training_program_data = []
+        training_program_data_raw = json.loads(response.text)["children"]
+        handle_training_program_data(training_program_data_raw, training_program_data)
+        # grades 的值
+        with open(os.path.join(folder_path, "grades.json"), "r", encoding='utf-8') as f:
+            grades_data = json.load(f)
+        # 将已修课程转换为字典形式，便于查找
+        completed_courses_all = {course["code"]: course for course in grades_data}
+        completed_courses_all_static = copy.deepcopy(completed_courses_all)
+        # 匹配已修和未修课程
+        handle_completed_and_incomplete_course(training_program_data, completed_courses_all, completed_courses_all_static)
+        # 删除 requiredCredits 为 0 的分组
+        training_program_data = del_zero_required_credits_group(training_program_data)
+        # 创建Excel表格
+        wb = openpyxl.Workbook()
+        sheet = wb.active
+        sheet.title = "培养方案"
+        # 写入数据
+        write_to_excel(training_program_data, sheet, max_dict_depth(training_program_data))
+        # 格式化表格
+        fromat_excel(sheet, completed_courses_all)
+        xlsx_name = "培养方案完成情况.xlsx"
+        xlsx_path = os.path.join(folder_path, xlsx_name)
+        wb.save(xlsx_path)
+        return xlsx_path, xlsx_name
