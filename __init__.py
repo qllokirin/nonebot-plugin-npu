@@ -10,7 +10,7 @@ from nonebot.exception import MatcherException
 require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
 from nonebot_plugin_waiter import waiter,prompt
-import os, shutil, json, asyncio
+import os, shutil, json, asyncio, random
 from typing import List, Union
 from pathlib import Path
 from .config import Config
@@ -308,6 +308,9 @@ async def _(
 # bot是否在线 最开始启动时是离线的 与ws握手成功后变为True,断连后变为False
 if_connected = False
 async def get_grades_and_ranks_and_exams(qq):
+    # 留2分钟给一轮检测的时间
+    sleep_time = random.uniform(0, (global_config.npu_check_time - 2) * 60 if global_config.npu_check_time >= 2 else 0)
+    await asyncio.sleep(sleep_time)
     grades_change = []
     ranks_change = []
     exams_change = []
@@ -386,7 +389,7 @@ async def connect():
     scheduler.resume_job('check_new_info')
     scheduler.resume_job('check_power')
 
-@scheduler.scheduled_job("cron", minute="*/"+str(global_config.npu_check_time),id="check_new_info")
+@scheduler.scheduled_job("interval", minutes=global_config.npu_check_time, id="check_new_info")
 async def check_grades_and_exams():
     """
     定时任务 检测新成绩/考试
