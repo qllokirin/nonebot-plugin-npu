@@ -9,6 +9,8 @@ red_fill = PatternFill(start_color="FF0000", end_color="FF0000", fill_type="soli
 yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
 # 未匹配课程为灰色填充
 gray_fill = PatternFill(start_color="D3D3D3", end_color="D3D3D3", fill_type="solid")
+# 按模块名称匹配为蓝色填充
+blue_fill = PatternFill(start_color="66ccff", end_color="66ccff", fill_type="solid")
 
 # Function to generate HTML table from data
 def generate_html_table(data):
@@ -114,37 +116,62 @@ def handle_training_program_data(data, results):
             "planCourses": []
         }
         data_plan = item.get("planCourses", [])
-        if data_plan:
-            for data_one in data_plan:
-                course_info = {
-                    "course_nameZh": data_one["course"]["nameZh"],
-                    "course_code": data_one["course"]["code"],
-                    "course_credits": data_one["course"]["credits"],
-                    "course_type": data_one["course"]["courseType"]["nameZh"]
-                }
-                class_info["planCourses"].append(course_info)
-        else:
-            children = item.get("children", [])
-            if children:
-                class_info["children"] = []
-                handle_training_program_data(children, class_info["children"])
+        for data_one in data_plan:
+            course_info = {
+                "course_nameZh": data_one["course"]["nameZh"],
+                "course_code": data_one["course"]["code"],
+                "course_credits": data_one["course"]["credits"],
+                "course_type": data_one["course"]["courseType"]["nameZh"]
+            }
+            class_info["planCourses"].append(course_info)
+        children = item.get("children", [])
+        if children:
+            class_info["children"] = []
+            handle_training_program_data(children, class_info["children"])
         results.append(class_info)
 
 # 递归正确计算剩余未修学分
+'''
+a中有a a a a a学分的就只取最低剩余学分的组 同分时两个都显示
+目前有发现六大类模块一共6学分，但是每个模块的要求学分是0 （6=0+0+0+0+0+0）或（6=1+0+0+0+0+0） (硬编码了)
+出完了 还有 a= 0+ 0的逆天模块
+语言类模块可能会有个分组5 要求学分是0 （8=8+8+8+8+0）(硬编码)
+语言类一般是 （8=8+8+8）（子>父 取剩余最小）
+微积分可能是 （11.5=5.5的课程+6学分的小分组）（单独计算
+'''
 def calculate_remaining_credits(data):
     if "children" in data:
+        # 来点硬编码 受不了啦 这培养方案写的一点都不规范
+        if data["type_nameZh"] == "语言类":
+            data["children"] = [child for child in data["children"] if child["requiredCredits"] != 0]
         # 遍历所有直接子节点，递归计算并累加其 remainingCredits
         for child in data["children"]:
             # 递归计算子节点的 remainingCredits
             calculate_remaining_credits(child)
         child_remaining_credits = [child["remainingCredits"] for child in data["children"]]
         child_required_credits = [child["requiredCredits"] for child in data["children"]]
-        # 当学分要求大于子节点的总学分时，说明是分组的培养方案，取子节点中最小的 remainingCredits
+        child_completed_credits = [child["completedCredits"] for child in data["children"]]
+        data["completedCredits"] = sum(child_completed_credits)
+        # 当子节点的总学分大于父节点学分要求时，说明是分组的培养方案，取子节点中最小的 remainingCredits
         if sum(child_required_credits) > data["requiredCredits"]:
             data["remainingCredits"] = min(child_remaining_credits)
             data["children"] = [child for child in data["children"] if child["remainingCredits"] == data["remainingCredits"]]
-        else:
+        elif sum(child_required_credits) == data["requiredCredits"]:
             data["remainingCredits"] = sum(child_remaining_credits)
+        # 当子节点的总学分小于父节点学分要求时，说明是课程和分组并列的培养方案 或 有0值的分组
+        else:
+            # （11.5=5.5的课程+6学分的小分组）
+            if (data.get("incompleteCourses") or data.get("completedCourses")) and data.get("children"):
+                data["remainingCredits"] = sum(child_remaining_credits) + sum(course["course_credits"] for course in data["incompleteCourses"])
+            # （6=0+0+0+0+0+0）
+            elif all(child["requiredCredits"] == 0 for child in data["children"]):
+                data["remainingCredits"] = data["requiredCredits"] - sum(child_completed_credits)
+            # （6=1+0+0+0+0+0）
+            elif "文明与经典类" in data["remark"]:
+                data["remainingCredits"] = data["requiredCredits"] - sum(child_completed_credits)
+            else:
+                print("error,有未知组合")
+                print(data["type_nameZh"])
         if data["remainingCredits"] < 0:
             data["remainingCredits"] = 0
 
@@ -184,16 +211,6 @@ def handle_completed_and_incomplete_course(program, completed_courses_all, compl
         # 递归正确计算剩余未修学分
         calculate_remaining_credits(item)
 
-# 删除 requiredCredits 为 0 的分组
-def del_zero_required_credits_group(nodes):
-    filtered_nodes = []
-    for node in nodes:
-        if "children" in node:
-            node["children"] = del_zero_required_credits_group(node["children"])
-        if node["requiredCredits"] != 0:
-            filtered_nodes.append(node)
-    return filtered_nodes
-
 # 计算最大层级深度
 def max_dict_depth(data):
     if isinstance(data, dict):
@@ -226,7 +243,7 @@ def write_to_excel(data, sheet, max_depth, row=1, col=1):
             # 递归处理子节点
             row = write_to_excel(item["children"], sheet, max_depth, row, col+1)
         # 写入课程信息
-        if "incompleteCourses" in item and item["remainingCredits"] > 0:
+        if "incompleteCourses" in item and (item["remainingCredits"] > 0 or any(keyword in item["type_nameZh"] for keyword in ["管理与领导力", "文明与经典", "创新创业", "伦理与可持续发展", "全球视野", "写作与沟通"])):
             for course in item["incompleteCourses"]:
                 sheet.cell(row=row, column=col + 1, value=course["course_nameZh"]).fill = red_fill
                 sheet.cell(row=row, column=col + 2, value=course["course_code"]).fill = red_fill

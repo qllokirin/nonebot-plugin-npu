@@ -29,7 +29,7 @@ git clone https://github.com/qllokirin/nonebot-plugin-npu.git ./{你的插件目
 * 2.安装
 
   ```
-  pip install requests imgkit==1.0.2 paho-mqtt==1.6.1 bs4 rsa
+  pip install requests imgkit==1.0.2 paho-mqtt==1.6.1 bs4 rsa openpyxl
   nb plugin install nonebot-plugin-apscheduler nonebot_plugin_waiter
   ```
 

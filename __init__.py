@@ -137,8 +137,10 @@ async def handel_function(bot: Bot, event: Union[PrivateMessageEvent, GroupMessa
                                 await nwpu.finish()
                             else:
                                 nwpu.finish("暂无课表")
+                        # 此功能难以实现，废弃
                         elif msg == "培养方案完成情况":
                             await nwpu.send("正在计算培养方案完成情况，请稍等")
+                            await nwpu_query_class.get_grades(folder_path)
                             xlsx_path, xlsx_name = await nwpu_query_class.get_training_program(folder_path)
                             await nwpu.send("发送中")
                             if isinstance(event, GroupMessageEvent):
@@ -152,7 +154,10 @@ async def handel_function(bot: Bot, event: Union[PrivateMessageEvent, GroupMessa
                             await nwpu.send("未完成课程为红色填充\n"
                                             "未完成模块为黄色填充\n"
                                             "未匹配课程为灰色填充\n"
-                                            "已匹配课程为蓝色字体~")
+                                            "已匹配课程为蓝色字体（按课程代号匹配）\n"
+                                            "qq预览无法看见颜色填充，请使用相关软件打开查看\n"
+                                            "程序可能会有出错之处，仅供参考")
+                            await nwpu.send("此功能已废弃，必有不对之处，请谨慎使用")
                             await nwpu.finish()
                         else:
                             await nwpu.finish("那是什么 我不知道\n"
