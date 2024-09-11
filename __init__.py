@@ -137,6 +137,11 @@ async def handel_function(bot: Bot, event: Union[PrivateMessageEvent, GroupMessa
                                 await nwpu.finish()
                             else:
                                 nwpu.finish("暂无课表")
+                        elif msg == "退出登录" or "退出登陆":
+                            await nwpu.send("正在退出登录")
+                            shutil.rmtree(folder_path)
+                            await nwpu.send("已删除数据")
+                            await nwpu.finish()
                         # 此功能难以实现，废弃
                         elif msg == "培养方案完成情况":
                             await nwpu.send("正在计算培养方案完成情况，请稍等")
