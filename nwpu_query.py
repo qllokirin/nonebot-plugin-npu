@@ -58,10 +58,11 @@ class NwpuQuery():
         self.headers2['X-Requested-With'] = 'XMLHttpRequest'
         self.headers3 = self.headers2.copy()
         self.headers3['Content-Type'] = 'application/json; charset=UTF-8'
-        self.session = requests.session()
+        self.student_assoc = None
 
     @run_sync
     def use_recent_cookies_login(self, cookies_path):
+        self.session = requests.session()
         URL = ("https://uis.nwpu.edu.cn/cas/login?service=https%3A%2F%2Fecampus.nwpu.edu.cn"
                "%2F%3Fpath%3Dhttps%3A%2F%2Fecampus.nwpu.edu.cn")
         if os.path.isfile(cookies_path):
@@ -73,6 +74,8 @@ class NwpuQuery():
         else:
             return False
         if len(response.history) != 0:
+            URL = 'https://jwxt.nwpu.edu.cn/student/sso-login'
+            self.session.get(URL, headers=self.headers)
             return True
         else:
             return False
@@ -121,7 +124,6 @@ class NwpuQuery():
             self.data = {'gid': gid}
             self.session.post(URL, data=json.dumps(self.data), headers=self.headers3)
             return 0
-        
 
     @run_sync
     def login_with_qr(self, folder_path):
@@ -171,6 +173,8 @@ class NwpuQuery():
                 cookies = json.dumps(self.session.cookies.get_dict())
                 with open((os.path.join(folder_path, 'cookies.txt')), 'w', encoding='utf-8') as f:
                     f.write(cookies)
+                URL = 'https://jwxt.nwpu.edu.cn/student/sso-login'
+                self.session.get(URL, headers=self.headers)
                 return True
 
     @run_sync
@@ -200,25 +204,44 @@ class NwpuQuery():
                 os.makedirs(folder_path)
             with open((os.path.join(folder_path, 'cookies.txt')), 'w', encoding='utf-8') as f:
                 f.write(cookies)
+            URL = 'https://jwxt.nwpu.edu.cn/student/sso-login'
+            self.session.get(URL, headers=self.headers)
             return 2
+
+    # 查询student_assoc
+    @run_sync
+    def get_student_assoc(self, folder_path) -> bool:
+        URL = 'https://jwxt.nwpu.edu.cn/student/sso-login'
+        self.session.get(URL, headers=self.headers)
+        URL = 'https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet'
+        response = self.session.get(URL, headers=self.headers)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        student_id_element_1 = soup.find('input', {'id': 'studentId'})
+        student_id_element_2 = soup.find('button', {'class': 'footer btn btn-primary'})
+        if student_id_element_1:
+            student_assoc = student_id_element_1['value']
+        elif student_id_element_2:
+            student_assoc = student_id_element_2['value']
+        else:
+            print("未找到student_assoc")
+        if student_assoc:
+            self.student_assoc = student_assoc
+            info = {"student_assoc": self.student_assoc}
+            with open(os.path.join(folder_path, 'info.json'), 'w', encoding='utf-8') as f:
+                json.dump(info, f, indent=4, ensure_ascii=False)
+            return True
+        else:
+            print("get_student_assoc failed",folder_path)
+            return False
 
     # 查询成绩
     @run_sync
     def get_grades(self, folder_path, sem_query=0):
         # 0 是查询全部成绩 是几就是查询后几个学期的
-        while True:
-            URL = 'https://jwxt.nwpu.edu.cn/student/sso-login'
-            self.session.get(URL, headers=self.headers)
-            URL = 'https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet'
-            response = self.session.get(URL, headers=self.headers)
-            match = re.search('semester-index/(.*)', response.url)
-            if match:
-                self.student_assoc = match.group(1)
-                break
-            time.sleep(2)
-            self.session = requests.session()
-            self.use_recent_cookies_login(os.path.join(folder_path, 'cookies.txt'))
-            # 偶尔会出现 目前怀疑为页面没有加载完全 故多次运行
+        URL = 'https://jwxt.nwpu.edu.cn/student/sso-login'
+        self.session.get(URL, headers=self.headers)
+        URL = 'https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet'
+        response = self.session.get(URL, headers=self.headers)
         response = self.session.get(
             'https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet/semester-index/' + self.student_assoc,
             headers=self.headers)
@@ -259,19 +282,8 @@ class NwpuQuery():
 
     @run_sync
     def get_rank(self, folder_path):
-        while True:
-            URL = 'https://jwxt.nwpu.edu.cn/student/sso-login'
-            self.session.get(URL, headers=self.headers)
-            URL = 'https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet'
-            response = self.session.get(URL, headers=self.headers)
-            match = re.search('semester-index/(.*)', response.url)
-            if match:
-                self.student_assoc = match.group(1)
-                break
-            time.sleep(2)
-            self.session = requests.session()
-            self.use_recent_cookies_login(os.path.join(folder_path, 'cookies.txt'))
-            # 偶尔会出现 目前怀疑为页面没有加载完全 故多次运行
+        URL = 'https://jwxt.nwpu.edu.cn/student/sso-login'
+        self.session.get(URL, headers=self.headers)
         URL = 'https://jwxt.nwpu.edu.cn/student/for-std/student-portrait'
         self.session.get(URL, headers=self.headers)
         URL = 'https://jwxt.nwpu.edu.cn/student/for-std/student-portrait/getStdInfo?bizTypeAssoc=2&cultivateTypeAssoc=1'
@@ -346,19 +358,8 @@ class NwpuQuery():
     # 获取课表信息
     @run_sync
     def get_course_table(self, folder_path):
-        while True:
-            URL = 'https://jwxt.nwpu.edu.cn/student/sso-login'
-            self.session.get(URL, headers=self.headers)
-            URL = 'https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet'
-            response = self.session.get(URL, headers=self.headers)
-            match = re.search('semester-index/(.*)', response.url)
-            if match:
-                self.student_assoc = match.group(1)
-                break
-            time.sleep(2)
-            self.session = requests.session()
-            self.use_recent_cookies_login(os.path.join(folder_path, 'cookies.txt'))
-            # 偶尔会出现 目前怀疑为页面没有加载完全 故多次运行
+        URL = 'https://jwxt.nwpu.edu.cn/student/sso-login'
+        self.session.get(URL, headers=self.headers)
         URL = 'https://jwxt.nwpu.edu.cn/student/for-std/course-table'
         response = self.session.get(URL, headers=self.headers)
         all_semesters = BeautifulSoup(response.text, 'html.parser').find('select', {'id': 'allSemesters'}).find_all('option')
@@ -379,19 +380,6 @@ class NwpuQuery():
     # 获取培养方案完成情况
     @run_sync
     def get_training_program(self, folder_path):
-        while True:
-            URL = 'https://jwxt.nwpu.edu.cn/student/sso-login'
-            self.session.get(URL, headers=self.headers)
-            URL = 'https://jwxt.nwpu.edu.cn/student/for-std/program'
-            response = self.session.get(URL, headers=self.headers)
-            match = re.search('info/(.*)', response.url)
-            if match:
-                self.student_assoc = match.group(1)
-                break
-            time.sleep(2)
-            self.session = requests.session()
-            self.use_recent_cookies_login(os.path.join(folder_path, 'cookies.txt'))
-            # 偶尔会出现 目前怀疑为页面没有加载完全 故多次运行
         URL = f'https://jwxt.nwpu.edu.cn/student/for-std/program/root-module-json/{self.student_assoc}'
         response = self.session.get(URL, headers=self.headers2)
         # training_program 的值

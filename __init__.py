@@ -69,6 +69,13 @@ async def handel_function(bot: Bot, event: Union[PrivateMessageEvent, GroupMessa
                 else:
                     await nwpu.send("正在登入翱翔门户")
                     if await nwpu_query_class.use_recent_cookies_login(cookies_path):
+                        if os.path.isfile(os.path.join(folder_path, 'info.json')):
+                            with open((os.path.join(folder_path, 'info.json')), 'r', encoding='utf-8') as f:
+                                nwpu_query_class.student_assoc = json.loads(f.read())["student_assoc"]
+                        else:
+                            if not await nwpu_query_class.get_student_assoc(folder_path):
+                                logger.error(f"获取信息失败")
+                                raise Exception("获取信息失败")
                         if msg == "成绩":
                             sem_query_num = 1
                             await nwpu.send(f"正在获取最近一学期的成绩，请稍等")
@@ -137,7 +144,7 @@ async def handel_function(bot: Bot, event: Union[PrivateMessageEvent, GroupMessa
                                 await nwpu.finish()
                             else:
                                 nwpu.finish("暂无课表")
-                        elif msg == "退出登录" or "退出登陆":
+                        elif msg == "退出登录" or msg == "退出登陆":
                             await nwpu.send("正在退出登录")
                             shutil.rmtree(folder_path)
                             await nwpu.send("已删除数据")
@@ -286,8 +293,15 @@ async def _(
             if os.path.isfile(cookies_path):
                     await poke_noetify.send("正在登入翱翔门户")
                     if await nwpu_query_class.use_recent_cookies_login(cookies_path):
-                            rank_msg, _ = await nwpu_query_class.get_rank(folder_path)
-                            await poke_noetify.finish(rank_msg)
+                        if os.path.isfile(os.path.join(folder_path, 'info.json')):
+                            with open((os.path.join(folder_path, 'info.json')), 'r', encoding='utf-8') as f:
+                                nwpu_query_class.student_assoc = json.loads(f.read())["student_assoc"]
+                        else:
+                            if not await nwpu_query_class.get_student_assoc(folder_path):
+                                logger.error(f"获取信息失败")
+                                raise Exception("获取信息失败")
+                        rank_msg, _ = await nwpu_query_class.get_rank(folder_path)
+                        await poke_noetify.finish(rank_msg)
                     else:
                         shutil.rmtree(folder_path)
                         await poke_noetify.finish("登陆失败 cookie过期，请输入 翱翔 进行登陆")
@@ -322,6 +336,13 @@ async def get_grades_and_ranks_and_exams(qq):
     if if_connected:
         # 登陆
         if await nwpu_query_class_sched.use_recent_cookies_login(cookies_path):
+            if os.path.isfile(os.path.join(folder_path, 'info.json')):
+                with open((os.path.join(folder_path, 'info.json')), 'r', encoding='utf-8') as f:
+                    nwpu_query_class_sched.student_assoc = json.loads(f.read())["student_assoc"]
+            else:
+                if not await nwpu_query_class_sched.get_student_assoc(folder_path):
+                    logger.error(f"{qq}的student_assoc获取失败，本次不检测")
+                    return grades_change, ranks_change, exams_change, failure_qq
             # 先检测成绩变化
             if global_config.npu_if_check_grades:
                 if os.path.exists(os.path.join(folder_path, 'grades.json')):
@@ -388,6 +409,7 @@ async def connect():
     logger.info("bot接入，启动定时任务")
     scheduler.resume_job('check_new_info')
     scheduler.resume_job('check_power')
+    await scheduler.get_job('check_new_info').func()
 
 @scheduler.scheduled_job("interval", minutes=global_config.npu_check_time, id="check_new_info")
 async def check_grades_and_exams():
@@ -417,6 +439,8 @@ async def check_grades_and_exams():
                     cookies_path = os.path.join(folder_path, 'cookies.txt')
                     nwpu_query_class_rank = NwpuQuery()
                     await nwpu_query_class_rank.use_recent_cookies_login(cookies_path)
+                    with open((os.path.join(folder_path, 'info.json')), 'r', encoding='utf-8') as f:
+                        nwpu_query_class_rank.student_assoc = json.loads(f.read())["student_assoc"]
                     rank_msg, _ = await nwpu_query_class_rank.get_rank(folder_path)
                     await bot.send_private_msg(user_id=int(qq), message=f"出新成绩啦！\n{grades_msg}")
                     logger.info(f"{qq}的新成绩已推送\n{grades_msg}")
