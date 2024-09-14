@@ -6,7 +6,7 @@ from nonebot.params import ArgPlainText, CommandArg
 from nonebot.rule import to_me
 from nonebot.adapters import Message
 from nonebot.utils import run_sync
-from nonebot.exception import MatcherException
+from nonebot.exception import MatcherException, ActionFailed
 require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
 from nonebot_plugin_waiter import waiter,prompt
@@ -266,6 +266,14 @@ async def handel_function(bot: Bot, event: Union[PrivateMessageEvent, GroupMessa
                 await nwpu.finish(f'没有这个登陆方式，请选择1或2或3，此次登陆已终止')
     except MatcherException:
         raise
+    except ActionFailed:
+        logger.error(f"文件发送失败")
+        if global_config.superusers:
+            logger.info(f"发送错误日志给SUPERUSERS")
+            for superuser in global_config.superusers:
+                await bot.send_private_msg(user_id=int(superuser), 
+                                           message=f"{event.get_user_id()}使用时发生错误\n文件发送失败")
+        await nwpu.finish("文件发送失败，刚加没多久的新好友大概率出现此问题，请等待几天后重试")
     except Exception as e:
         logger.error(f"出错了{e}")
         if global_config.superusers:
