@@ -221,6 +221,13 @@ async def handel_function(bot: Bot, event: Union[PrivateMessageEvent, GroupMessa
                                 status = await nwpu_query_class.verification_code_login(verification_code, folder_path)
                                 if status == 2:
                                     await nwpu.send(f"登陆成功！正在获取全部成绩，请稍等")
+                                    if os.path.isfile(os.path.join(folder_path, 'info.json')):
+                                        with open((os.path.join(folder_path, 'info.json')), 'r', encoding='utf-8') as f:
+                                            nwpu_query_class.student_assoc = json.loads(f.read())["student_assoc"]
+                                    else:
+                                        if not await nwpu_query_class.get_student_assoc(folder_path):
+                                            logger.error(f"获取信息失败")
+                                            raise Exception("获取信息失败")
                                     _, grades = await nwpu_query_class.get_grades(folder_path)
                                     pic_path = os.path.join(folder_path, 'grades.jpg')
                                     generate_img_from_html(grades, folder_path)
@@ -248,6 +255,13 @@ async def handel_function(bot: Bot, event: Union[PrivateMessageEvent, GroupMessa
                 await nwpu.send(MessageSegment.image(Path(os.path.join(folder_path, 'qr.png'))))
                 if await nwpu_query_class.wating_to_scan_qr(folder_path):
                     await nwpu.send(f'扫码登录成功！正在获取全部成绩，请稍等')
+                    if os.path.isfile(os.path.join(folder_path, 'info.json')):
+                        with open((os.path.join(folder_path, 'info.json')), 'r', encoding='utf-8') as f:
+                            nwpu_query_class.student_assoc = json.loads(f.read())["student_assoc"]
+                    else:
+                        if not await nwpu_query_class.get_student_assoc(folder_path):
+                            logger.error(f"获取信息失败")
+                            raise Exception("获取信息失败")
                     _, grades = await nwpu_query_class.get_grades(folder_path)
                     pic_path = os.path.join(folder_path, 'grades.jpg')
                     generate_img_from_html(grades, folder_path)
