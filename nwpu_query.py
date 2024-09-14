@@ -82,6 +82,7 @@ class NwpuQuery():
 
     @run_sync
     def login(self, username, password, device, folder_path):
+        self.session = requests.session()
         URL = ("https://uis.nwpu.edu.cn/cas/login?service=https%3A%2F%2Fecampus.nwpu.edu.cn"
                "%2F%3Fpath%3Dhttps%3A%2F%2Fecampus.nwpu.edu.cn")
         self.device = device
@@ -127,6 +128,7 @@ class NwpuQuery():
 
     @run_sync
     def login_with_qr(self, folder_path):
+        self.session = requests.session()
         URL = ("https://uis.nwpu.edu.cn/cas/login?service=https%3A%2F%2Fecampus.nwpu.edu.cn"
                "%2F%3Fpath%3Dhttps%3A%2F%2Fecampus.nwpu.edu.cn")
 
