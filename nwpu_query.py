@@ -22,6 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 '''
 
+from nonebot import logger
 import re
 import time
 import json
@@ -33,6 +34,7 @@ from bs4 import BeautifulSoup
 from nonebot.utils import run_sync
 import openpyxl
 import copy
+from requests.exceptions import Timeout
 from .utils import handle_training_program_data, handle_completed_and_incomplete_course, max_dict_depth, write_to_excel, fromat_excel
 
 class NwpuQuery():
@@ -213,8 +215,6 @@ class NwpuQuery():
     # 查询student_assoc
     @run_sync
     def get_student_assoc(self, folder_path) -> bool:
-        URL = 'https://jwxt.nwpu.edu.cn/student/sso-login'
-        self.session.get(URL, headers=self.headers)
         URL = 'https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet'
         response = self.session.get(URL, headers=self.headers)
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -225,7 +225,8 @@ class NwpuQuery():
         elif student_id_element_2:
             student_assoc = student_id_element_2['value']
         else:
-            print("未找到student_assoc")
+            logger.info("未找到student_assoc")
+            raise f"{folder_path}未找到student_assoc"
         if student_assoc:
             self.student_assoc = student_assoc
             info = {"student_assoc": self.student_assoc}
@@ -233,72 +234,75 @@ class NwpuQuery():
                 json.dump(info, f, indent=4, ensure_ascii=False)
             return True
         else:
-            print("get_student_assoc failed",folder_path)
+            logger.info("get_student_assoc failed",folder_path)
             return False
 
     # 查询成绩
     @run_sync
     def get_grades(self, folder_path, sem_query=0):
         # 0 是查询全部成绩 是几就是查询后几个学期的
-        URL = 'https://jwxt.nwpu.edu.cn/student/sso-login'
-        self.session.get(URL, headers=self.headers)
-        URL = 'https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet'
-        response = self.session.get(URL, headers=self.headers)
-        response = self.session.get(
-            'https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet/semester-index/' + self.student_assoc,
-            headers=self.headers)
-        semester = re.findall('<option value="(.+?)"', response.text)
-        grades = []
-        grades_msg = []
-        sem_query_ = sem_query
-        if sem_query == 0: sem_query = len(semester)
-        for sem in semester:
-            URL = 'https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet/info/' + self.student_assoc + '?semester=' + sem
-            response = self.session.get(URL, headers=self.headers2)
-            response = json.loads(response.text)['semesterId2studentGrades'][sem]
-            for course in response:
-                name = course['course']['nameZh']
-                code = course['course']['code']
-                course_type = course['courseType']['nameZh']
-                grade_score = course['gaGrade']
-                gpa = str(course['gp'])
-                credit = course['course']['credits']
-                grade_detail = re.findall('>(.+?)</span>', course['gradeDetail'])
-                grades_msg.append(f'{name}, {grade_score}, {gpa}, {credit}, {grade_detail}')
-                grades_one_subject = {
-                    "name": name,
-                    "code": code,
-                    "course_type": course_type,
-                    "grade_score": grade_score,
-                    "gpa": gpa,
-                    "credit": credit,
-                    "grade_detail": grade_detail
-                }
-                grades.append(grades_one_subject)
-            if (sem_query := sem_query - 1) == 0: break
-        # 获取全部成绩时才保存成绩
-        if sem_query_ == 0:
-            with open(os.path.join(folder_path, 'grades.json'), 'w', encoding='utf-8') as f:
-                json.dump(grades, f, indent=4, ensure_ascii=False, )
-        return grades_msg, grades
+        try:
+            URL = 'https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet'
+            response = self.session.get(URL, headers=self.headers, timeout=5)
+            response = self.session.get(
+                'https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet/semester-index/' + self.student_assoc,
+                headers=self.headers, timeout=5)
+            semester = re.findall('<option value="(.+?)"', response.text)
+            grades = []
+            grades_msg = []
+            sem_query_ = sem_query
+            if sem_query == 0: sem_query = len(semester)
+            for sem in semester:
+                URL = 'https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet/info/' + self.student_assoc + '?semester=' + sem
+                response = self.session.get(URL, headers=self.headers2, timeout=5)
+                if response.status_code != 200:
+                    logger.error(f"{folder_path}成绩获取失败 状态码: {response.status_code}，返回None，在定时任务中会跳过，在指令获取中会返回错误信息")
+                    return None, None
+                response = json.loads(response.text)['semesterId2studentGrades'][sem]
+                for course in response:
+                    name = course['course']['nameZh']
+                    code = course['course']['code']
+                    course_type = course['courseType']['nameZh']
+                    grade_score = course['gaGrade']
+                    gpa = str(course['gp'])
+                    credit = course['course']['credits']
+                    grade_detail = re.findall('>(.+?)</span>', course['gradeDetail'])
+                    grades_msg.append(f'{name}, {grade_score}, {gpa}, {credit}, {grade_detail}')
+                    grades_one_subject = {
+                        "name": name,
+                        "code": code,
+                        "course_type": course_type,
+                        "grade_score": grade_score,
+                        "gpa": gpa,
+                        "credit": credit,
+                        "grade_detail": grade_detail
+                    }
+                    grades.append(grades_one_subject)
+                if (sem_query := sem_query - 1) == 0: break
+            # 获取全部成绩时才保存成绩
+            if sem_query_ == 0:
+                with open(os.path.join(folder_path, 'grades.json'), 'w', encoding='utf-8') as f:
+                    json.dump(grades, f, indent=4, ensure_ascii=False, )
+            return grades_msg, grades
+        except Timeout:
+            logger.error(f"{folder_path}成绩获取超时，返回None，在定时任务中会跳过，在指令获取中会返回错误信息")
+            return None, None
 
     @run_sync
     def get_rank(self, folder_path):
-        URL = 'https://jwxt.nwpu.edu.cn/student/sso-login'
-        self.session.get(URL, headers=self.headers)
         URL = 'https://jwxt.nwpu.edu.cn/student/for-std/student-portrait'
-        self.session.get(URL, headers=self.headers)
+        self.session.get(URL, headers=self.headers, timeout=5)
         URL = 'https://jwxt.nwpu.edu.cn/student/for-std/student-portrait/getStdInfo?bizTypeAssoc=2&cultivateTypeAssoc=1'
-        response = self.session.get(URL, headers=self.headers)
+        response = self.session.get(URL, headers=self.headers, timeout=5)
         grade = response.json()['student']['grade']
         major_id = response.json()['student']['major']['id']
         major_name = response.json()['student']['major']['nameZh']
         URL = f'https://jwxt.nwpu.edu.cn/student/for-std/student-portrait/getGradeAnalysis?bizTypeAssoc=2&grade={grade}&majorAssoc={major_id}&semesterAssoc='
-        response = self.session.get(URL, headers=self.headers)
+        response = self.session.get(URL, headers=self.headers, timeout=5)
         score_range_count = response.json()['scoreRangeCount']
         total_poeple_num = sum(score_range_count.values())
         URL = f'https://jwxt.nwpu.edu.cn/student/for-std/student-portrait/getMyGrades?studentAssoc={self.student_assoc}&semesterAssoc='
-        response = self.session.get(URL, headers=self.headers)
+        response = self.session.get(URL, headers=self.headers, timeout=5)
         if response.json()['stdGpaRankDto'] is None:
             return "暂无排名，xdx先体验下大学生活喵", 0
         else:
@@ -318,10 +322,9 @@ class NwpuQuery():
     # 查询考试信息
     @run_sync
     def get_exams(self, folder_path, is_finished_show=False):
-        URL = 'https://jwxt.nwpu.edu.cn/student/sso-login'
-        self.session.get(URL, headers=self.headers)
         URL = 'https://jwxt.nwpu.edu.cn/student/for-std/exam-arrange'
-        response = self.session.get(URL, headers=self.headers)
+        # 这个接口会获得一个20+mb的html文件，所以timeout设置为30
+        response = self.session.get(URL, headers=self.headers, timeout=30)
         soup = BeautifulSoup(response.text, 'html.parser')
         rows = soup.find_all('tr')
         exams = []
@@ -332,7 +335,7 @@ class NwpuQuery():
                 finished = row['data-finished']
                 if (not is_finished_show and finished == 'false') or is_finished_show:
                     # 时间
-                    time = row.find_all('div', class_='time')[0].text
+                    time_exam = row.find_all('div', class_='time')[0].text
                     # 地点
                     location = ', '.join([span.text for span in row.find('td').find_all('span')])
                     # 课程
@@ -342,7 +345,7 @@ class NwpuQuery():
 
                     exam = {
                         "if_finished": finished,
-                        "time": time,
+                        "time": time_exam,
                         "location": location,
                         "course": course,
                         "status": status
@@ -351,7 +354,7 @@ class NwpuQuery():
 
                     exams_msg +="名称："+course+"\n"
                     exams_msg +="地点："+location+"\n"
-                    exams_msg +="时间："+time+"\n\n"
+                    exams_msg +="时间："+time_exam+"\n\n"
         exams_msg = exams_msg[:-2]
         with open(os.path.join(folder_path, 'exams.json'), 'w', encoding='utf-8') as f:
             json.dump(exams, f, indent=4, ensure_ascii=False, )
@@ -360,17 +363,15 @@ class NwpuQuery():
     # 获取课表信息
     @run_sync
     def get_course_table(self, folder_path):
-        URL = 'https://jwxt.nwpu.edu.cn/student/sso-login'
-        self.session.get(URL, headers=self.headers)
         URL = 'https://jwxt.nwpu.edu.cn/student/for-std/course-table'
-        response = self.session.get(URL, headers=self.headers)
+        response = self.session.get(URL, headers=self.headers, timeout=5)
         all_semesters = BeautifulSoup(response.text, 'html.parser').find('select', {'id': 'allSemesters'}).find_all('option')
         course_table_path = ''
         course_table_name = ''
         # 遍历学期，找到有课的学期就保存
         for semester in all_semesters:
             URL = f"https://jwxt.nwpu.edu.cn/student/for-std/course-table/semester/{semester['value']}/print-data/{self.student_assoc}?hasExperiment=true"
-            response = self.session.get(URL, headers=self.headers)
+            response = self.session.get(URL, headers=self.headers, timeout=5)
             if response.json()["studentTableVm"]["credits"] != 0:
                 course_table_path = os.path.join(folder_path, f'{semester.text}.html')
                 course_table_name = f"{semester.text}.html"
@@ -383,7 +384,7 @@ class NwpuQuery():
     @run_sync
     def get_training_program(self, folder_path):
         URL = f'https://jwxt.nwpu.edu.cn/student/for-std/program/root-module-json/{self.student_assoc}'
-        response = self.session.get(URL, headers=self.headers2)
+        response = self.session.get(URL, headers=self.headers2, timeout=5)
         # training_program 的值
         training_program_data = []
         training_program_data_raw = json.loads(response.text)["children"]
