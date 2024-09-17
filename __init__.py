@@ -155,6 +155,20 @@ async def handel_function(bot: Bot, event: Union[PrivateMessageEvent, GroupMessa
                             shutil.rmtree(folder_path)
                             await nwpu.send("退出成功")
                             await nwpu.finish()
+                        elif msg == "加权百分制成绩":
+                            await nwpu.send(f"加权百分制成绩的意思是计算原始百分制成绩的加权平均，不使用gpa（绩点）成绩，P/NP成绩不计入加权百分制成绩中")
+                            await nwpu.send(f"正在获取全部成绩，请等待")
+                            _, grades = await nwpu_query_class.get_grades(folder_path)
+                            if grades:
+                                await nwpu.send(f"正在计算加权百分制成绩")
+                                grades = [grade for grade in grades if grade['grade_score'].isdigit()]
+                                average_grades = sum([float(grade['grade_score']) * float(grade['credit']) for grade in grades]) / sum([float(grade['credit']) for grade in grades])
+                                await nwpu.send(f"加权百分制成绩为{average_grades:.4f}")
+                            elif grades is None:
+                                await nwpu.send("成绩获取失败，请稍后再试")
+                            else:
+                                await nwpu.send("无成绩喵")
+                            await nwpu.finish()
                         # 此功能难以实现，废弃
                         elif msg == "培养方案完成情况":
                             await nwpu.send("正在计算培养方案完成情况，请稍等")
@@ -234,6 +248,7 @@ async def handel_function(bot: Bot, event: Union[PrivateMessageEvent, GroupMessa
                                         raise Exception("获取信息失败")
                                     rank_msg, _ = await nwpu_query_class.get_rank(folder_path)
                                     await nwpu.send(rank_msg)
+                                    await nwpu.send("学校的排名逻辑是同绩点的可能会被并列为同一名也可能会按顺序排，所以没出成绩时排名也在上下浮动是正常的（因为可能有跟你同绩点也有可能是前面有人同绩点导致你往前一名）")
                                     _, grades = await nwpu_query_class.get_grades(folder_path)
                                     if grades:
                                         pic_path = os.path.join(folder_path, 'grades.jpg')
@@ -243,7 +258,6 @@ async def handel_function(bot: Bot, event: Union[PrivateMessageEvent, GroupMessa
                                         await nwpu.send("成绩获取失败，请稍后再试")
                                     else:
                                         await nwpu.send("无成绩喵")
-                                    await nwpu.send("学校的排名逻辑是同绩点的可能会被并列为同一名也可能会按顺序排，所以没出成绩时排名也在上下浮动是正常的（因为可能有跟你同绩点也有可能是前面有人同绩点导致你往前一名）")
                                     exams_msg, _ = await nwpu_query_class.get_exams(folder_path)
                                     exams_msg = ("你的考试有：\n" + exams_msg) if exams_msg else "暂无考试"
                                     await nwpu.finish(exams_msg)
@@ -271,6 +285,7 @@ async def handel_function(bot: Bot, event: Union[PrivateMessageEvent, GroupMessa
                         raise Exception("获取信息失败")
                     rank_msg, _ = await nwpu_query_class.get_rank(folder_path)
                     await nwpu.send(rank_msg)
+                    await nwpu.send("学校的排名逻辑是同绩点的可能会被并列为同一名也可能会按顺序排，所以没出成绩时排名也在上下浮动是正常的（因为可能有跟你同绩点也有可能是前面有人同绩点导致你往前一名）")
                     _, grades = await nwpu_query_class.get_grades(folder_path)
                     if grades:
                         pic_path = os.path.join(folder_path, 'grades.jpg')
@@ -280,7 +295,6 @@ async def handel_function(bot: Bot, event: Union[PrivateMessageEvent, GroupMessa
                         await nwpu.send("成绩获取失败，请稍后再试")
                     else:
                         await nwpu.send("无成绩喵")
-                    await nwpu.send("学校的排名逻辑是同绩点的可能会被并列为同一名也可能会按顺序排，所以没出成绩时排名也在上下浮动是正常的（因为可能有跟你同绩点也有可能是前面有人同绩点导致你往前一名）")
                     exams_msg, _ = await nwpu_query_class.get_exams(folder_path)
                     exams_msg = ("你的考试有：\n" + exams_msg) if exams_msg else "暂无考试"
                     await nwpu.finish(exams_msg)
