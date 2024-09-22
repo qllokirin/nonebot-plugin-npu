@@ -312,7 +312,7 @@ async def handel_function(bot: Bot, event: Union[PrivateMessageEvent, GroupMessa
             logger.info(f"发送错误日志给SUPERUSERS")
             for superuser in global_config.superusers:
                 await bot.send_private_msg(user_id=int(superuser), 
-                                           message=f"{event.get_user_id()}使用时发生错误\n文件发送失败")
+                                           message=MessageSegment.text(f"{event.get_user_id()}发生错误\n文件发送失败") + MessageSegment.image(f"https://q.qlogo.cn/headimg_dl?dst_uin={event.get_user_id()}&spec=640"))
         await nwpu.finish("文件发送失败，刚加没多久的新好友大概率出现此问题，请等待几天后重试")
     except Exception as e:
         logger.error(f"出错了{e}")
@@ -320,7 +320,7 @@ async def handel_function(bot: Bot, event: Union[PrivateMessageEvent, GroupMessa
             logger.info(f"发送错误日志给SUPERUSERS")
             for superuser in global_config.superusers:
                 await bot.send_private_msg(user_id=int(superuser), 
-                                           message=f"{event.get_user_id()}使用时发生错误\n{e}")
+                                           message=MessageSegment.text(f"{event.get_user_id()}使用翱翔{args.extract_plain_text()}时发生错误\n{e}") + MessageSegment.image(f"https://q.qlogo.cn/headimg_dl?dst_uin={event.get_user_id()}&spec=640"))
         await nwpu.finish("出错了，请重试")
 
 '''
@@ -363,7 +363,7 @@ async def _(
             logger.info(f"发送错误日志给SUPERUSERS")
             for superuser in global_config.superusers:
                 await bot.send_private_msg(user_id=int(superuser), 
-                                           message=f"{event.get_user_id()}使用时发生错误\n{e}")
+                                           message=MessageSegment.text(f"{event.get_user_id()}使用戳一戳时发生错误\n{e}") + MessageSegment.image(f"https://q.qlogo.cn/headimg_dl?dst_uin={event.get_user_id()}&spec=640"))
         await poke_noetify.finish("出错了，请重试")
 
 
@@ -606,7 +606,7 @@ async def handel_function(bot: Bot, event: Event, args: Message = CommandArg()):
             logger.info(f"发送错误日志给SUPERUSERS")
             for superuser in global_config.superusers:
                 await bot.send_private_msg(user_id=int(superuser), 
-                                           message=f"{event.get_user_id()}发生错误\n{e}")
+                                           message=MessageSegment.text(f"{event.get_user_id()}使用翱翔电费{args.extract_plain_text()}发生错误\n{e}") + MessageSegment.image(f"https://q.qlogo.cn/headimg_dl?dst_uin={event.get_user_id()}&spec=640"))
         await nwpu_electric.finish("出错了，请重试")
 
 @run_sync
