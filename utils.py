@@ -2,6 +2,7 @@ import imgkit
 import os
 import json
 from openpyxl.styles import Border, Side, Alignment, Font, PatternFill, Alignment
+from nonebot.utils import run_sync
 
 # 未完成课程为红色填充
 red_fill = PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
@@ -63,7 +64,7 @@ def generate_html_table(data):
 
     return html_table
 
-
+@run_sync
 def generate_img_from_html(data, grades_folder_path):
     # Generate HTML table
     html_table_content = generate_html_table(data)

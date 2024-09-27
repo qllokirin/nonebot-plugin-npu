@@ -27,14 +27,12 @@ import re
 import time
 import json
 import os
-import requests
+import httpx
 import rsa
 import base64
 from bs4 import BeautifulSoup
-from nonebot.utils import run_sync
 import openpyxl
 import copy
-from requests.exceptions import Timeout
 from .utils import handle_training_program_data, handle_completed_and_incomplete_course, max_dict_depth, write_to_excel, fromat_excel
 
 class NwpuQuery():
@@ -61,30 +59,29 @@ class NwpuQuery():
         self.headers3 = self.headers2.copy()
         self.headers3['Content-Type'] = 'application/json; charset=UTF-8'
         self.student_assoc = None
+        self.client = httpx.AsyncClient(follow_redirects=True)
 
-    @run_sync
-    def use_recent_cookies_login(self, cookies_path):
-        self.session = requests.session()
-        URL = ("https://uis.nwpu.edu.cn/cas/login?service=https%3A%2F%2Fecampus.nwpu.edu.cn"
-               "%2F%3Fpath%3Dhttps%3A%2F%2Fecampus.nwpu.edu.cn")
+    async def close_client(self):
+        await self.client.aclose()
+
+    async def use_recent_cookies_login(self, cookies_path):
+        URL = "https://uis.nwpu.edu.cn/cas/login?service=https%3A%2F%2Fecampus.nwpu.edu.cn%2F%3Fpath%3Dhttps%3A%2F%2Fecampus.nwpu.edu.cn"
         if os.path.isfile(cookies_path):
             with open(cookies_path, 'r', encoding='utf-8') as f:
                 new_cookies = json.loads(f.read())
-            self.session.cookies.update(new_cookies)
-            response = self.session.get(URL, headers=self.headers)
-            response.encoding = 'utf-8'
+            for name, value in new_cookies.items():
+                self.client.cookies.set(name, value)
         else:
             return False
+        response = await self.client.get(URL, headers=self.headers)
         if len(response.history) != 0:
             URL = 'https://jwxt.nwpu.edu.cn/student/sso-login'
-            self.session.get(URL, headers=self.headers)
+            response = await self.client.get(URL, headers=self.headers)
             return True
         else:
             return False
 
-    @run_sync
-    def login(self, username, password, device, folder_path):
-        self.session = requests.session()
+    async def login(self, username, password, device, folder_path):
         URL = ("https://uis.nwpu.edu.cn/cas/login?service=https%3A%2F%2Fecampus.nwpu.edu.cn"
                "%2F%3Fpath%3Dhttps%3A%2F%2Fecampus.nwpu.edu.cn")
         self.device = device
@@ -92,20 +89,21 @@ class NwpuQuery():
 
         # RSA加密password
         URL_key = 'https://uis.nwpu.edu.cn/cas/jwt/publicKey'
-        public_key = self.session.get(URL_key, headers=self.headers2).text
+        public_key = await self.client.get(URL_key, headers=self.headers2).text
         public_key = rsa.PublicKey.load_pkcs1_openssl_pem(public_key.encode())
         password = rsa.encrypt(password.encode(), public_key)
         password = "__RSA__" + base64.b64encode(password).decode()
         self.password = password
 
-        response = self.session.get(URL, headers=self.headers)
+        response = await self.client.get(URL, headers=self.headers)
         response.encoding = 'utf-8'
         str1 = re.search('var hmSiteId = "(.*?)"', response.text)
         new_cookies = {
             ("Hm_lvt_" + str1.group(1)): str(int(time.time())),
             ("Hm_lpvt_" + str1.group(1)): str(int(time.time()))
         }
-        self.session.cookies.update(new_cookies)
+        for name, value in new_cookies.items():
+            self.client.cookies.set(name, value)
         
         self.execution = re.search('name="execution" value="(.*?)"', response.text)
 
@@ -114,52 +112,50 @@ class NwpuQuery():
             'username': self.username,
             'password': self.password,
         }
-        response = self.session.post(URL, data=data, headers=self.headers2)
+        response = await self.client.post(URL, data=data, headers=self.headers2)
         self.state_code = json.loads(response.text)['data']['state']
 
         URL = f'https://uis.nwpu.edu.cn/cas/mfa/initByType/{device}?state={self.state_code}'
-        response = self.session.get(URL, headers=self.headers2)
+        response = await self.client.get(URL, headers=self.headers2)
         if json.loads(response.text)['code'] != 0:
             return json.loads(response.text)['code']
         else:
             gid = json.loads(response.text)['data']['gid']
             URL = f'https://uis.nwpu.edu.cn/attest/api/guard/{device}/send'
             self.data = {'gid': gid}
-            self.session.post(URL, data=json.dumps(self.data), headers=self.headers3)
+            await self.client.post(URL, data=json.dumps(self.data), headers=self.headers3)
             return 0
 
-    @run_sync
-    def login_with_qr(self, folder_path):
-        self.session = requests.session()
+    async def login_with_qr(self, folder_path):
         URL = ("https://uis.nwpu.edu.cn/cas/login?service=https%3A%2F%2Fecampus.nwpu.edu.cn"
                "%2F%3Fpath%3Dhttps%3A%2F%2Fecampus.nwpu.edu.cn")
 
-        response = self.session.get(URL, headers=self.headers)
+        response = await self.client.get(URL, headers=self.headers)
         response.encoding = 'utf-8'
         str1 = re.search('var hmSiteId = "(.*?)"', response.text)
         new_cookies = {
             ("Hm_lvt_" + str1.group(1)): str(int(time.time())),
             ("Hm_lpvt_" + str1.group(1)): str(int(time.time()))
         }
-        self.session.cookies.update(new_cookies)
+        for name, value in new_cookies.items():
+            self.client.cookies.set(name, value)
         self.fpVisitorId = re.search('name="fpVisitorId" value="(.*?)"', response.text)
 
         URL = 'https://uis.nwpu.edu.cn/cas/qr/init'
-        response = self.session.get(URL, headers=self.headers2)
+        response = await self.client.get(URL, headers=self.headers2)
         self.state_key = json.loads(response.text)['data']['stateKey']
         URL = f'https://uis.nwpu.edu.cn/cas/qr/qrcode?r={int(time.time_ns()/1000000)}'
-        response = self.session.get(URL, headers=self.headers)
+        response = await self.client.get(URL, headers=self.headers)
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
         with open(os.path.join(folder_path, 'qr.png'), 'wb') as f:
             f.write(response.content)
 
-    @run_sync
-    def wating_to_scan_qr(self,folder_path):
+    async def wating_to_scan_qr(self,folder_path):
         URL = 'https://uis.nwpu.edu.cn/cas/qr/comet'
         while True:
             time.sleep(1)
-            response = self.session.post(URL, headers=self.headers2)
+            response = await self.client.post(URL, headers=self.headers2)
             code = json.loads(response.text)["code"]
             if code == 1:
                 return False
@@ -173,19 +169,18 @@ class NwpuQuery():
                     'geolocation': '',
                     'fpVisitorId': self.fpVisitorId
                 }
-                self.session.post(URL, data=self.data, headers=self.headers)
-                cookies = json.dumps(self.session.cookies.get_dict())
+                await self.client.post(URL, data=self.data, headers=self.headers)
+                cookies = {cookie.name: cookie.value for cookie in self.client.cookies.jar}
                 with open((os.path.join(folder_path, 'cookies.txt')), 'w', encoding='utf-8') as f:
-                    f.write(cookies)
+                    f.write(json.dumps(cookies, indent=4, ensure_ascii=False))
                 URL = 'https://jwxt.nwpu.edu.cn/student/sso-login'
-                self.session.get(URL, headers=self.headers)
+                await self.client.get(URL, headers=self.headers)
                 return True
 
-    @run_sync
-    def verification_code_login(self, captcha, folder_path):
+    async def verification_code_login(self, captcha, folder_path):
         URL = f'https://uis.nwpu.edu.cn/attest/api/guard/{self.device}/valid'
         self.data['code'] = captcha
-        response = self.session.post(URL, data=json.dumps(self.data), headers=self.headers3)
+        response = await self.client.post(URL, data=json.dumps(self.data), headers=self.headers3)
         if json.loads(response.text)["data"]["status"] != 2:
             return json.loads(response.text)["data"]["status"]
         else:
@@ -202,21 +197,20 @@ class NwpuQuery():
                 'geolocation': '',
                 'submit': '稍等片刻……',
             }
-            self.session.post(URL, data=self.data, headers=self.headers)
-            cookies = json.dumps(self.session.cookies.get_dict())
+            await self.client.post(URL, data=self.data, headers=self.headers)
+            cookies = {cookie.name: cookie.value for cookie in self.client.cookies.jar}
             if not os.path.exists(folder_path):
                 os.makedirs(folder_path)
             with open((os.path.join(folder_path, 'cookies.txt')), 'w', encoding='utf-8') as f:
                 f.write(cookies)
             URL = 'https://jwxt.nwpu.edu.cn/student/sso-login'
-            self.session.get(URL, headers=self.headers)
+            await self.client.get(URL, headers=self.headers)
             return 2
 
     # 查询student_assoc
-    @run_sync
-    def get_student_assoc(self, folder_path) -> bool:
+    async def get_student_assoc(self, folder_path) -> bool:
         URL = 'https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet'
-        response = self.session.get(URL, headers=self.headers)
+        response = await self.client.get(URL, headers=self.headers)
         soup = BeautifulSoup(response.text, 'html.parser')
         student_id_element_1 = soup.find('input', {'id': 'studentId'})
         student_id_element_2 = soup.find('button', {'class': 'footer btn btn-primary'})
@@ -226,7 +220,7 @@ class NwpuQuery():
             student_assoc = student_id_element_2['value']
         else:
             logger.info("未找到student_assoc")
-            raise f"{folder_path}未找到student_assoc"
+            raise ValueError(f"{folder_path} 未找到 student_assoc")
         if student_assoc:
             self.student_assoc = student_assoc
             info = {"student_assoc": self.student_assoc}
@@ -238,13 +232,12 @@ class NwpuQuery():
             return False
 
     # 查询成绩
-    @run_sync
-    def get_grades(self, folder_path, sem_query=0):
+    async def get_grades(self, folder_path, sem_query=0):
         # 0 是查询全部成绩 是几就是查询后几个学期的
         try:
             URL = 'https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet'
-            response = self.session.get(URL, headers=self.headers, timeout=5)
-            response = self.session.get(
+            response = await self.client.get(URL, headers=self.headers, timeout=5)
+            response = await self.client.get(
                 'https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet/semester-index/' + self.student_assoc,
                 headers=self.headers, timeout=5)
             semester = re.findall('<option value="(.+?)"', response.text)
@@ -254,7 +247,7 @@ class NwpuQuery():
             if sem_query == 0: sem_query = len(semester)
             for sem in semester:
                 URL = 'https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet/info/' + self.student_assoc + '?semester=' + sem
-                response = self.session.get(URL, headers=self.headers2, timeout=5)
+                response = await self.client.get(URL, headers=self.headers2, timeout=5)
                 if response.status_code != 200:
                     logger.error(f"{folder_path}成绩获取失败 状态码: {response.status_code}，返回None，在定时任务中会跳过，在指令获取中会返回错误信息")
                     return None, None
@@ -284,25 +277,24 @@ class NwpuQuery():
                 with open(os.path.join(folder_path, 'grades.json'), 'w', encoding='utf-8') as f:
                     json.dump(grades, f, indent=4, ensure_ascii=False, )
             return grades_msg, grades
-        except Timeout:
+        except httpx.TimeoutException:
             logger.error(f"{folder_path}成绩获取超时，返回None，在定时任务中会跳过，在指令获取中会返回错误信息")
             return None, None
 
-    @run_sync
-    def get_rank(self, folder_path):
+    async def get_rank(self, folder_path):
         URL = 'https://jwxt.nwpu.edu.cn/student/for-std/student-portrait'
-        self.session.get(URL, headers=self.headers, timeout=5)
+        await self.client.get(URL, headers=self.headers, timeout=5)
         URL = 'https://jwxt.nwpu.edu.cn/student/for-std/student-portrait/getStdInfo?bizTypeAssoc=2&cultivateTypeAssoc=1'
-        response = self.session.get(URL, headers=self.headers, timeout=5)
+        response = await self.client.get(URL, headers=self.headers, timeout=5)
         grade = response.json()['student']['grade']
         major_id = response.json()['student']['major']['id']
         major_name = response.json()['student']['major']['nameZh']
         URL = f'https://jwxt.nwpu.edu.cn/student/for-std/student-portrait/getGradeAnalysis?bizTypeAssoc=2&grade={grade}&majorAssoc={major_id}&semesterAssoc='
-        response = self.session.get(URL, headers=self.headers, timeout=5)
+        response = await self.client.get(URL, headers=self.headers, timeout=5)
         score_range_count = response.json()['scoreRangeCount']
         total_poeple_num = sum(score_range_count.values())
         URL = f'https://jwxt.nwpu.edu.cn/student/for-std/student-portrait/getMyGrades?studentAssoc={self.student_assoc}&semesterAssoc='
-        response = self.session.get(URL, headers=self.headers, timeout=5)
+        response = await self.client.get(URL, headers=self.headers, timeout=5)
         if response.json()['stdGpaRankDto'] is None:
             return "暂无排名，xdx先体验下大学生活喵", 0
         else:
@@ -320,11 +312,10 @@ class NwpuQuery():
             return rank_msg, rank
 
     # 查询考试信息
-    @run_sync
-    def get_exams(self, folder_path, is_finished_show=False):
+    async def get_exams(self, folder_path, is_finished_show=False):
         URL = 'https://jwxt.nwpu.edu.cn/student/for-std/exam-arrange'
         # 这个接口会获得一个20+mb的html文件，所以timeout设置为30
-        response = self.session.get(URL, headers=self.headers, timeout=30)
+        response = await self.client.get(URL, headers=self.headers, timeout=30)
         soup = BeautifulSoup(response.text, 'html.parser')
         rows = soup.find_all('tr')
         exams = []
@@ -356,22 +347,22 @@ class NwpuQuery():
                     exams_msg +="地点："+location+"\n"
                     exams_msg +="时间："+time_exam+"\n\n"
         exams_msg = exams_msg[:-2]
-        with open(os.path.join(folder_path, 'exams.json'), 'w', encoding='utf-8') as f:
-            json.dump(exams, f, indent=4, ensure_ascii=False, )
+        if not is_finished_show:
+            with open(os.path.join(folder_path, 'exams.json'), 'w', encoding='utf-8') as f:
+                json.dump(exams, f, indent=4, ensure_ascii=False)
         return exams_msg, exams
     
     # 获取课表信息
-    @run_sync
-    def get_course_table(self, folder_path):
+    async def get_course_table(self, folder_path):
         URL = 'https://jwxt.nwpu.edu.cn/student/for-std/course-table'
-        response = self.session.get(URL, headers=self.headers, timeout=5)
+        response = await self.client.get(URL, headers=self.headers, timeout=5)
         all_semesters = BeautifulSoup(response.text, 'html.parser').find('select', {'id': 'allSemesters'}).find_all('option')
         course_table_path = ''
         course_table_name = ''
         # 遍历学期，找到有课的学期就保存
         for semester in all_semesters:
             URL = f"https://jwxt.nwpu.edu.cn/student/for-std/course-table/semester/{semester['value']}/print-data/{self.student_assoc}?hasExperiment=true"
-            response = self.session.get(URL, headers=self.headers, timeout=5)
+            response = await self.client.get(URL, headers=self.headers, timeout=5)
             if response.json()["studentTableVm"]["credits"] != 0:
                 course_table_path = os.path.join(folder_path, f'{semester.text}.html')
                 course_table_name = f"{semester.text}.html"
@@ -381,10 +372,9 @@ class NwpuQuery():
         return course_table_path, course_table_name
     
     # 获取培养方案完成情况
-    @run_sync
-    def get_training_program(self, folder_path):
+    async def get_training_program(self, folder_path):
         URL = f'https://jwxt.nwpu.edu.cn/student/for-std/program/root-module-json/{self.student_assoc}'
-        response = self.session.get(URL, headers=self.headers2, timeout=5)
+        response = await self.client.get(URL, headers=self.headers2, timeout=10)
         # training_program 的值
         training_program_data = []
         training_program_data_raw = json.loads(response.text)["children"]
