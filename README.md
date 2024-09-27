@@ -49,6 +49,8 @@ npu_if_check_grades=true
 npu_if_check_rank=true
 npu_if_check_exams=false
 npu_if_check_when_connect=true
+npu_begin_check_hour=8
+npu_end_check_hour=22
 ```
 
 |        参数         |  值  |          说明          |
@@ -57,6 +59,9 @@ npu_if_check_when_connect=true
 | npu_if_check_grades | bool |      是否检测成绩      |
 |  npu_if_check_rank  | bool |      是否检测排名      |
 | npu_if_check_exams  | bool |     是否检测新考试     |
+| npu_if_check_when_connect  | bool |     当connect的是否执行一次检测     |
+| npu_begin_check_hour | int | 起始检测时间，在x点之前不会检测 |
+| npu_end_check_hour | int | 最末检测时间，在x点之后不会检测 |
 
 # 🎉 使用
 

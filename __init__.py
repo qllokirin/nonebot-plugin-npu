@@ -12,6 +12,7 @@ from nonebot_plugin_apscheduler import scheduler
 from nonebot_plugin_waiter import waiter,prompt
 import os, shutil, json, asyncio, random, httpx
 from requests.exceptions import ConnectionError
+from datetime import datetime
 from typing import List, Union
 from pathlib import Path
 from .config import Config
@@ -509,7 +510,8 @@ async def check_grades_and_exams():
     定时任务 检测新成绩/考试
     """
     try:
-        if if_connected:
+        current_hour = datetime.now().hour
+        if if_connected and global_config.npu_begin_check_hour <= current_hour < global_config.npu_end_check_hour:
             bot: Bot = get_bot()
             # 获取全部已登陆的QQ号
             qq_all = []
@@ -553,7 +555,7 @@ async def check_grades_and_exams():
                     await bot.send_private_msg(user_id=int(qq), message=f"你的登陆信息已失效，请输入 翱翔 重新登陆")
             logger.info(f"本次检测完毕")
         else:
-            logger.info(f"bot失联，不检测")
+            logger.info(f"bot失联或不在检测时间段中，不检测")
     except MatcherException:
         raise
     except Exception as e:
