@@ -89,8 +89,8 @@ class NwpuQuery():
 
         # RSA加密password
         URL_key = 'https://uis.nwpu.edu.cn/cas/jwt/publicKey'
-        public_key = await self.client.get(URL_key, headers=self.headers2).text
-        public_key = rsa.PublicKey.load_pkcs1_openssl_pem(public_key.encode())
+        response = await self.client.get(URL_key, headers=self.headers2)
+        public_key = rsa.PublicKey.load_pkcs1_openssl_pem(response.text.encode())
         password = rsa.encrypt(password.encode(), public_key)
         password = "__RSA__" + base64.b64encode(password).decode()
         self.password = password
@@ -202,7 +202,7 @@ class NwpuQuery():
             if not os.path.exists(folder_path):
                 os.makedirs(folder_path)
             with open((os.path.join(folder_path, 'cookies.txt')), 'w', encoding='utf-8') as f:
-                f.write(cookies)
+                f.write(json.dumps(cookies, indent=4, ensure_ascii=False))
             URL = 'https://jwxt.nwpu.edu.cn/student/sso-login'
             await self.client.get(URL, headers=self.headers)
             return 2
