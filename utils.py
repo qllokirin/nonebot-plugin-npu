@@ -36,6 +36,8 @@ def generate_html_table(data):
         <thead>
             <tr>
                 <th>Name</th>
+                <th>Class ID</th>
+                <th>Class Type</th>
                 <th>Grade Score</th>
                 <th>GPA</th>
                 <th>Credit</th>
