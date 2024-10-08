@@ -8,6 +8,7 @@ from nonebot.adapters import Message
 from nonebot.utils import run_sync
 from nonebot.exception import MatcherException, ActionFailed
 require("nonebot_plugin_apscheduler")
+require("nonebot_plugin_waiter")
 from nonebot_plugin_apscheduler import scheduler
 from nonebot_plugin_waiter import waiter,prompt
 import os, shutil, json, asyncio, random, httpx
