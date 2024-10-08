@@ -8,3 +8,4 @@ class Config(BaseModel):
     npu_if_check_when_connect: bool = False
     npu_begin_check_hour: int = 8
     npu_end_check_hour: int = 22
+    superusers: set[str]
