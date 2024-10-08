@@ -48,7 +48,12 @@ plugins = ["nonebot-plugin-apscheduler", "nonebot-plugin-waiter", "nonebot-plugi
 
 </details>
 
-- [ ] 法二：nb plugin安装方法
+<details open>
+<summary>法二：nb plugin安装方法</summary>
+
+......
+
+</details>
 
 在`.env.prod`/`.env`中写入以下字段，参考如下
 
