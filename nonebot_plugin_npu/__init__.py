@@ -608,7 +608,7 @@ async def handel_function(bot: Bot, event: Event, args: Message = CommandArg()):
                 information_all += room_all[int(room_msg.extract_plain_text())]['name']
                 room = room_all[int(room_msg.extract_plain_text())]['value']
                 data = {'campaus':campaus,'building':building,'room':room}
-                electric_left = get_electric_left(campaus, building, room)
+                electric_left = await get_electric_left(campaus, building, room)
                 with open(os.path.join(folder_path, 'electric.json'), 'w', encoding='utf-8') as f:
                     json.dump(data, f, indent=4, ensure_ascii=False)
                 await nwpu_electric.send(f'{information_all}，当前剩余电量：{electric_left}')
@@ -636,8 +636,7 @@ async def handel_function(bot: Bot, event: Event, args: Message = CommandArg()):
                                            message=MessageSegment.text(f"{event.get_user_id()}使用翱翔电费{args.extract_plain_text()}发生错误\n{e}") + MessageSegment.image(f"https://q.qlogo.cn/headimg_dl?dst_uin={event.get_user_id()}&spec=640"))
         await nwpu_electric.finish("出错了，请重试")
 
-@run_sync
-def get_nwpu_electric():
+async def get_nwpu_electric():
     logger.info('检查宿舍电费')
     qq_all = []
     data_folder_path = os.path.join(os.path.dirname(__file__), 'data')
@@ -656,7 +655,7 @@ def get_nwpu_electric():
         electric_path = os.path.join(folder_path, 'electric.json')
         with open(electric_path, 'r', encoding='utf-8') as f:
             electric_information = json.loads(f.read())
-        electric_left = get_electric_left(electric_information['campaus'],electric_information['building'],electric_information['room'])
+        electric_left = await get_electric_left(electric_information['campaus'],electric_information['building'],electric_information['room'])
         logger.info(f'{qq}电费还剩{electric_left}')
         if electric_left < 25:
             electric_all.append([qq,electric_left])
