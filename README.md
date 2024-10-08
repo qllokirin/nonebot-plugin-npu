@@ -17,7 +17,8 @@ nonebot-plugin-npu，翱翔门户成绩监控插件，能获取成绩、排名�
 git clone https://github.com/qllokirin/nonebot-plugin-npu.git ./{你的插件目录}
 ```
 
-依赖安装
+<details open>
+<summary>法一：pip安装</summary>
 
 * 1.激活python环境
 
@@ -29,17 +30,25 @@ git clone https://github.com/qllokirin/nonebot-plugin-npu.git ./{你的插件目
 * 2.安装
 
   ```
-  pip install requests imgkit==1.0.2 paho-mqtt==1.6.1 bs4 rsa openpyxl
-  nb plugin install nonebot-plugin-apscheduler nonebot_plugin_waiter
+  pip install nonebot-plugin-npu
   ```
-
+  
 * 3.安装wkhtmltopdf
 
   ```
   打开https://wkhtmltopdf.org/downloads.html安装
   ```
+  
 
-- [ ] nb plugin安装方法
+打开 nonebot2 项目根目录下的 `pyproject.toml` 文件, 在 `[tool.nonebot]` 部分追加写入
+
+```
+plugins = ["nonebot-plugin-apscheduler", "nonebot-plugin-waiter", "nonebot-plugin-npu"]
+```
+
+</details>
+
+- [ ] 法二：nb plugin安装方法
 
 在`.env.prod`/`.env`中写入以下字段，参考如下
 
