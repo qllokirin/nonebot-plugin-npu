@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "nonebot-plugin-npu"
+version = "0.1.0"
+description = "翱翔门户成绩监控插件，能获取成绩、排名、绩点，当出现新成绩时推送给使用者"
+authors = ["qllokirin"]
+readme = "README.md"
+keywords = ["nonebot", "nonebot2", "npu", "nwpu"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+imgkit = "1.0.2"
+paho-mqtt = "1.6.1"
+bs4 = "^0.0.2"
+rsa = "^4.9"
+openpyxl = "^3.1.5"
+nonebot2 = "^2.3.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

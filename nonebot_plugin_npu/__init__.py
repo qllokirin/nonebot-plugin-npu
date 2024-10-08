@@ -1,4 +1,4 @@
-from nonebot import logger, get_driver, require, on_command, on_type, get_bot
+from nonebot import logger, get_driver, require, on_command, on_type, get_bot, get_plugin_config
 from nonebot.plugin import PluginMetadata
 from nonebot.adapters.onebot.v11 import Bot, Event, Message, MessageSegment, MessageEvent ,GroupMessageEvent, PrivateMessageEvent, PokeNotifyEvent
 from nonebot.matcher import Matcher
@@ -21,13 +21,16 @@ from .utils import generate_img_from_html, generate_grades_to_msg, get_exams_msg
 from .nwpu_electric import get_campaus, get_building, get_room, get_electric_left
 
 __plugin_meta__ = PluginMetadata(
-    name="nonebot-plugin-npu",
-    description="",
-    usage="",
+    name="西工大翱翔门户成绩监控",
+    description="翱翔门户成绩监控插件，能获取成绩、排名、绩点，当出现新成绩时推送给使用者",
+    usage="https://github.com/qllokirin/nonebot-plugin-npu/blob/master/README.md",
+    type="application",
+    homepage="https://github.com/qllokirin/nonebot-plugin-npu",
+    supported_adapters={"~onebot.v11"},
     config=Config,
 )
 driver = get_driver()
-global_config = driver.config
+global_config = get_plugin_config(Config)
 
 nwpu = on_command("翱翔", rule=to_me(), aliases={"npu", "nwpu"}, priority=10, block=True)
 
@@ -530,10 +533,8 @@ async def check_grades_and_exams():
                 grades_change, ranks_change, exams_change, failure_qq = await running_task
                 for qq, pic_path, grades_msg in grades_change:
                     await bot.send_private_msg(user_id=int(qq), message=f"出新成绩啦！\n{grades_msg}")
-                    logger.info(f"{qq}的新成绩已推送\n{grades_msg}")
-                    await bot.send_private_msg(user_id=int(qq), message=f"{rank_msg}")
-                    await asyncio.sleep(2)
                     await bot.send_private_msg(user_id=int(qq), message=MessageSegment.image(Path(pic_path)))
+                    logger.info(f"{qq}的新成绩已推送\n{grades_msg}")
                     await asyncio.sleep(2)
                 for qq, rank_old, rank, rank_msg in ranks_change:
                     await bot.send_private_msg(user_id=int(qq),
@@ -547,7 +548,6 @@ async def check_grades_and_exams():
                     new_course_msg = new_course_msg[:-1]
                     await bot.send_private_msg(user_id=int(qq),
                                             message=f"你有新的考试有：\n"+new_course_msg)
-                    await asyncio.sleep(2)
                     await bot.send_private_msg(user_id=int(qq),
                                             message=f"你的全部未结束考试有：\n"+exams_msg)
                     await asyncio.sleep(2)
