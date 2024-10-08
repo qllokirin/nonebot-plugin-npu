@@ -11,7 +11,6 @@ require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
 from nonebot_plugin_waiter import waiter,prompt
 import os, shutil, json, asyncio, random, httpx
-from requests.exceptions import ConnectionError
 from datetime import datetime
 from typing import List, Union
 from pathlib import Path
@@ -476,10 +475,6 @@ async def get_grades_and_ranks_and_exams(qq):
         logger.error(f"TimeoutException httpx超时{e}")
         await nwpu_query_class_sched.close_client()
         return grades_change, ranks_change, exams_change, failure_qq
-    except ConnectionError as e:
-        logger.error(f"ConnectionError连接错误{e}")
-        await nwpu_query_class_sched.close_client()
-        return grades_change, ranks_change, exams_change, failure_qq
     except Exception as e:
         logger.error(f"定时任务出现新错误{e}")
         await nwpu_query_class_sched.close_client()
@@ -581,20 +576,20 @@ async def handel_function(bot: Bot, event: Event, args: Message = CommandArg()):
                 if os.path.exists(electric_path):
                     with open(electric_path, 'r', encoding='utf-8') as f:
                         electric_information = json.loads(f.read())
-                    electric_left = get_electric_left(electric_information['campaus'],electric_information['building'],electric_information['room'])
+                    electric_left = await get_electric_left(electric_information['campaus'],electric_information['building'],electric_information['room'])
                     await nwpu_electric.finish(f'电费剩余{electric_left}')
                 else:
                     await nwpu_electric.finish(f'暂未绑定宿舍\n请输入 翱翔电费绑定 进行绑定')
             elif msg == "绑定":
                 logger.info("绑定新的宿舍")
                 information_all = ""
-                msg,campaus_all = get_campaus()
+                msg,campaus_all = await get_campaus()
                 if (campaus_msg := await prompt(msg)) is None:
                     await nwpu_electric.finish("已超时，本次绑定结束")
                 information_all += campaus_all[int(campaus_msg.extract_plain_text())]['name'] + " "
                 folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
                 campaus = campaus_all[int(campaus_msg.extract_plain_text())]['value']
-                msg_list,building_all = get_building(campaus)
+                msg_list,building_all = await get_building(campaus)
                 msg_all = []
                 for msg in msg_list:
                     msg_all.append(MessageSegment.text(msg))
@@ -603,7 +598,7 @@ async def handel_function(bot: Bot, event: Event, args: Message = CommandArg()):
                     await nwpu.nwpu_electric("已超时，本次绑定结束")
                 information_all += building_all[int(building_msg.extract_plain_text())]['name'] + " "
                 building = building_all[int(building_msg.extract_plain_text())]['value']
-                msg_list,room_all = get_room(campaus,building)
+                msg_list,room_all = await get_room(campaus,building)
                 msg_all = []
                 for msg in msg_list:
                     msg_all.append(MessageSegment.text(msg))
