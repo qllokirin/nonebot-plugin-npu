@@ -1,3 +1,37 @@
+<!-- markdownlint-disable MD033 MD036 MD041 -->
+
+<div align="center">
+  <a href="https://v2.nonebot.dev/store"><img src="https://github.com/A-kirami/nonebot-plugin-template/blob/resources/nbp_logo.png" width="180" height="180" alt="NoneBotPluginLogo"></a>
+  <br>
+  <p><img src="https://github.com/A-kirami/nonebot-plugin-template/blob/resources/NoneBotPlugin.svg" width="240" alt="NoneBotPluginText"></p>
+</div>
+
+<div align="center">
+
+# nonebot-plugin-npu
+
+_✨ 西工大翱翔门户成绩监控插件，能获取成绩、排名、绩点，当出现新成绩时推送给使用者 ✨_
+
+</div>
+
+<p align="center">
+  <a href="https://github.com/qllokirin/nonebot-plugin-npu/blob/master/LICENSE">
+    <img src="https://img.shields.io/github/license/qllokirin/nonebot-plugin-npu.svg" alt="license">
+  </a>
+  <a href="https://pypi.python.org/pypi/nonebot-plugin-npu">
+    <img src="https://img.shields.io/pypi/v/nonebot-plugin-npu.svg" alt="pypi">
+  </a>
+  <img src="https://img.shields.io/badge/python-3.9+-blue.svg" alt="python">
+</p>
+<p align="center">
+  <a href="https://www.bilibili.com/video/BV1ga411T7mv">
+    <img src="images/headset.jpg" alt="【洛天依原创】所以我戴上了耳机【COP投稿十周年】">
+  </a>
+</p>
+<h2 align="center">"摘下耳机时眼眶依旧会微红
+戴上耳机依旧是你描绘的梦"
+</h2>
+
 # 📖 介绍
 
 nonebot-plugin-npu，翱翔门户成绩监控插件，能获取成绩、排名、绩点，当出现新成绩时推送给使用者
@@ -11,13 +45,7 @@ nonebot-plugin-npu，翱翔门户成绩监控插件，能获取成绩、排名�
 
 # 💿 安装
 
-目前仅文件夹插件的安装（放在`pyproject.toml`的`plugin_dirs`字段的文件夹里）
-
-```
-git clone https://github.com/qllokirin/nonebot-plugin-npu.git ./{你的插件目录}
-```
-
-<details open>
+<details>
 <summary>法一：pip安装</summary>
 
 * 1.激活python环境
@@ -48,21 +76,27 @@ plugins = ["nonebot-plugin-apscheduler", "nonebot-plugin-waiter", "nonebot-plugi
 
 </details>
 
-<details open>
+<details>
 <summary>法二：nb plugin安装方法</summary>
 
 ......
 
 </details>
 
-在`.env.prod`/`.env`中写入以下字段，参考如下
+在`.env.prod`/`.env`中写入以下字段，也可不填，默认值如下
+
+> [!TIP]
+>
+> 记得配置[SUPERUSERS](https://nonebot.dev/docs/appendices/config#superusers)，当发生错误时会推送消息给超级用户
+>
+> 推荐设置[Command Start](https://nonebot.dev/docs/appendices/config#command-start-%E5%92%8C-command-separator)为`COMMAND_START=["/", ""]`，这样有`/`和没`/`都可以响应指令
 
 ```
-npu_check_time=10
+npu_check_time=60
 npu_if_check_grades=true
-npu_if_check_rank=true
-npu_if_check_exams=false
-npu_if_check_when_connect=true
+npu_if_check_rank=false
+npu_if_check_exams=true
+npu_if_check_when_connect=false
 npu_begin_check_hour=8
 npu_end_check_hour=22
 ```
@@ -81,59 +115,28 @@ npu_end_check_hour=22
 
 ### 指令表
 
-|     指令      |   范围    |                说明                |
-| :-----------: | :-------: | :--------------------------------: |
-|   **/翱翔**   | 私聊/艾特 |            登陆翱翔门户            |
-|   /翱翔成绩   | 私聊/艾特 |          获取本学期的成绩          |
-|   /翱翔排名   | 私聊/艾特 |            获取排名信息            |
-|   /翱翔考试   | 私聊/艾特 |        获取未结束的考试信息        |
-| /翱翔全部成绩 | 私聊/艾特 |            获取全部成绩            |
-| /翱翔全部考试 | 私聊/艾特 |          获取全部考试信息          |
-| /翱翔电费绑定 | 私聊/艾特 | 绑定宿舍，当电费小于25时会推送消息 |
-| /翱翔电费查询 | 私聊/艾特 |            查询当前电费            |
-
-# 效果图
-
 <details>
-<summary>演示效果</summary>
+<summary>指令列表</summary>
 
-![mail.png](images/demo.jpg)
+|         指令          |   范围    |                           说明                           |           示例           |
+| :-------------------: | :-------: | :------------------------------------------------------: | :----------------------: |
+|       **/翱翔**       | 私聊/艾特 |                       登陆翱翔门户                       |   ![](images/翱翔.png)   |
+|       /翱翔成绩       | 私聊/艾特 |                     获取本学期的成绩                     | ![](images/翱翔成绩.png) |
+|       /翱翔排名       | 私聊/艾特 |                       获取排名信息                       |     ![](images/翱翔排名.png)     |
+|       /翱翔考试       | 私聊/艾特 |                   获取未结束的考试信息                   |     ![](images/翱翔考试.png)     |
+|       /翱翔课表       | 私聊/艾特 |           获取课表（需要搭配wake up软件使用）            |     ![](images/翱翔课表.png)     |
+| /翱翔退出登陆（登录） | 私聊/艾特 |                         退出登陆                         |     ![](images/翱翔退出登陆.png)     |
+|     /翱翔全部成绩     | 私聊/艾特 |                       获取全部成绩                       |     ![](images/翱翔全部成绩.png)     |
+|     /翱翔全部考试     | 私聊/艾特 |                     获取全部考试信息                     |     ![](images/翱翔全部考试.png)     |
+|  /翱翔加权百分制成绩  | 私聊/艾特 |                    计算加权百分制成绩                    |     ![](images/翱翔加权百分制成绩.png)     |
+|     /翱翔电费绑定     | 私聊/艾特 | 绑定宿舍，当电费小于25时会推送消息，每天中午12点检测一次 |     ![](images/翱翔电费绑定.png)     |
+|     /翱翔电费查询     | 私聊/艾特 |                       查询当前电费                       |     ![](images/翱翔电费查询.png)     |
+|     /翱翔电费解绑     | 私聊/艾特 |                       解除宿舍绑定                       |     ![](images/翱翔电费解绑.png)     |
 
 </details>
-
-# nonebot使用
-
-> 其实是为了方便自己后续再搭建一个  b站大佬的详细[教程](https://www.bilibili.com/video/BV1984y1b7JY)
-
-```
-pip install nb-cli
-nb
-> 创建一个nonebot项目
-> simple
-> 名字
-> FastAPI
-> OneBot V11
-> Y
-> Y
-cd {项目名称}
-# 激活python环境（可选）
-.\.venv\Scripts\activate   				(Windows)
-source \.venv\Scripts\activate			(Ubuntu)
-# 启动
-nb run --reload 
-```
-
-打开`.env.prod`追加如下内容
-
-```
-HOST=0.0.0.0  # 配置 NoneBot 监听的 IP / 主机名
-PORT=22330  # 配置 NoneBot 监听的端口
-SUPERUSERS=["123456"] # QQ账号 超级用户
-```
-
-gocq基本已g，登陆建议使用[NapCatQQ](https://github.com/NapNeko/NapCatQQ)或[Lagrange](https://github.com/LagrangeDev/Lagrange.Core)
 
 # 致谢
 
 翱翔门户登陆以及数据获取参考了：https://github.com/cheanus/Automation/blob/main/GradesMonitorLinux.py
 
+README写法 [参考](https://github.com/A-kirami/nonebot-plugin-template/blob/master/README.md) [参考](https://github.com/WJZ-P/LiteLoaderQQNT-Echo-Message/blob/main/README.md)
