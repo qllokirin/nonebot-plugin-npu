@@ -85,12 +85,6 @@ plugins = ["nonebot-plugin-apscheduler", "nonebot-plugin-waiter", "nonebot-plugi
 
 在`.env.prod`/`.env`中写入以下字段，也可不填，默认值如下
 
-> [!TIP]
->
-> 记得配置[SUPERUSERS](https://nonebot.dev/docs/appendices/config#superusers)，当发生错误时会推送消息给超级用户
->
-> 推荐设置[Command Start](https://nonebot.dev/docs/appendices/config#command-start-%E5%92%8C-command-separator)为`COMMAND_START=["/", ""]`，这样有`/`和没`/`都可以响应指令
-
 ```
 npu_check_time=60
 npu_if_check_grades=true
@@ -110,6 +104,12 @@ npu_end_check_hour=22
 | npu_if_check_when_connect  | bool |     当connect的是否执行一次检测     |
 | npu_begin_check_hour | int | 起始检测时间，在x点之前不会检测 |
 | npu_end_check_hour | int | 最末检测时间，在x点之后不会检测 |
+
+> [!TIP]
+>
+> 记得配置[SUPERUSERS](https://nonebot.dev/docs/appendices/config#superusers)，当发生错误时会推送消息给超级用户
+>
+> 推荐设置[Command Start](https://nonebot.dev/docs/appendices/config#command-start-%E5%92%8C-command-separator)为`COMMAND_START=["/", ""]`，这样有`/`和没`/`都可以响应指令
 
 # 🎉 使用
 
