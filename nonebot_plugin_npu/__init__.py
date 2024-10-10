@@ -401,7 +401,7 @@ async def _(
 
 # bot是否在线 最开始启动时是离线的 与ws握手成功后变为True,断连后变为False
 if_connected = False
-async def get_grades_and_ranks_and_exams(qq):
+async def check_grades_and_ranks_and_exams(qq, bot):
     try:
         # 留2分钟空闲时间
         sleep_time = random.uniform(0, (global_config.npu_check_time - 2) * 60 if global_config.npu_check_time >= 2 else 0)
@@ -409,22 +409,19 @@ async def get_grades_and_ranks_and_exams(qq):
         grades_change = []
         ranks_change = []
         exams_change = []
-        failure_qq = []
 
         folder_path = os.path.join(os.path.dirname(__file__), 'data', qq)
         cookies_path = os.path.join(folder_path, 'cookies.txt')
         nwpu_query_class_sched = NwpuQuery()
         if if_connected:
-            # 登陆
             if await nwpu_query_class_sched.use_recent_cookies_login(cookies_path):
                 if os.path.isfile(os.path.join(folder_path, 'info.json')):
                     with open((os.path.join(folder_path, 'info.json')), 'r', encoding='utf-8') as f:
                         nwpu_query_class_sched.student_assoc = json.loads(f.read())["student_assoc"]
                 else:
                     if not await nwpu_query_class_sched.get_student_assoc(folder_path):
-                        logger.error(f"{qq}的student_assoc获取失败，本次不检测")
-                        await nwpu_query_class_sched.close_client()
-                        return grades_change, ranks_change, exams_change, failure_qq
+                        logger.error(f"{qq}的获取信息失败")
+                        raise Exception("定时任务{qq}的获取信息失败")
                 # 先检测成绩变化
                 if global_config.npu_if_check_grades:
                     if os.path.exists(os.path.join(folder_path, 'grades.json')):
@@ -435,10 +432,15 @@ async def get_grades_and_ranks_and_exams(qq):
                         if new_grades:
                             pic_path = os.path.join(folder_path, 'grades.jpg')
                             await generate_img_from_html(new_grades, folder_path)
-                            grades_change.append([qq, pic_path, generate_grades_to_msg(new_grades)])
+                            grades_change = [qq, pic_path, generate_grades_to_msg(new_grades)]
                             logger.info(f"{qq}出新成绩啦")
                     else:
                         await nwpu_query_class_sched.get_grades(folder_path)
+                if grades_change:
+                    qq, pic_path, grades_msg = grades_change
+                    await bot.send_private_msg(user_id=int(qq), message=f"出新成绩啦！\n{grades_msg}")
+                    await bot.send_private_msg(user_id=int(qq), message=MessageSegment.image(Path(pic_path)))
+                    logger.info(f"{qq}的新成绩已推送\n{grades_msg}")
 
                 # 检测rank的变化
                 if global_config.npu_if_check_rank:
@@ -447,10 +449,14 @@ async def get_grades_and_ranks_and_exams(qq):
                             rank_old = f.read()
                         rank_msg, rank = await nwpu_query_class_sched.get_rank(folder_path)
                         if str(rank_old) != str(rank):
-                            ranks_change.append([qq, rank_old, rank, rank_msg])
+                            ranks_change = [qq, rank_old, rank, rank_msg]
                             logger.info(f"{qq}的rank变化啦")
                     else:
                         await nwpu_query_class_sched.get_rank(folder_path)
+                if ranks_change:
+                    qq, rank_old, rank, rank_msg = ranks_change
+                    await bot.send_private_msg(user_id=int(qq), message=f"你的rank发生了变化,{rank_old}->{rank}\n{rank_msg}")
+                    logger.info(f"{qq}的新排名已推送\n{rank_msg}")
                 
                 # 检测考试变化
                 if global_config.npu_if_check_exams:
@@ -460,26 +466,41 @@ async def get_grades_and_ranks_and_exams(qq):
                         exams_msg, exams = await nwpu_query_class_sched.get_exams(folder_path)
                         new_exams = [exam for exam in exams if exam not in exams_old]
                         if new_exams:
-                            exams_change.append([qq, new_exams, exams_msg])
+                            exams_change = [qq, new_exams, exams_msg]
                             logger.info(f"{qq}出新考试啦")
                     else:
                         await nwpu_query_class_sched.get_exams(folder_path)
+                if exams_change:
+                    qq, new_exams, exams_msg = exams_change
+                    new_courses = [new_exam['course'] for new_exam in new_exams]
+                    new_course_msg = ""
+                    for new_course in new_courses:
+                        new_course_msg += new_course + "\n"
+                    new_course_msg = new_course_msg[:-1]
+                    await bot.send_private_msg(user_id=int(qq),
+                                            message=f"你有新的考试有：\n"+new_course_msg)
+                    await bot.send_private_msg(user_id=int(qq),
+                                            message=f"你的全部未结束考试有：\n"+exams_msg)
+                    logger.info(f"{qq}的新考试已推送\n{new_course_msg}")
             else:
                 logger.error(f"{qq}的cookies失效了,删除该文件夹")
-                failure_qq.append(qq)
                 shutil.rmtree(folder_path)
+                await bot.send_private_msg(user_id=int(qq), message=f"你的登陆信息已失效，请输入 翱翔 重新登陆")
+                logger.info(f"{qq}登录信息过期已推送")
         else:
             logger.info("bot失联，终止更新")
         await nwpu_query_class_sched.close_client()
-        return grades_change, ranks_change, exams_change, failure_qq
     except httpx.TimeoutException as e:
         logger.error(f"TimeoutException httpx超时{e}")
         await nwpu_query_class_sched.close_client()
-        return grades_change, ranks_change, exams_change, failure_qq
     except Exception as e:
         logger.error(f"定时任务出现新错误{e}")
         await nwpu_query_class_sched.close_client()
-        return grades_change, ranks_change, exams_change, failure_qq
+        logger.error(f"出错了{e}")
+        if global_config.superusers:
+            logger.info(f"发送错误日志给SUPERUSERS")
+            for superuser in global_config.superusers:
+                await bot.send_private_msg(user_id=int(superuser), message=f"检测定时任务 发生错误\n{e}")
 
 
 @driver.on_bot_disconnect
@@ -523,37 +544,11 @@ async def check_grades_and_exams():
                     logger.info("没有账号登陆")
             else:
                 logger.info("没有data文件夹")
-            tasks = [get_grades_and_ranks_and_exams(qq) for qq in qq_all]
-            running_tasks = [asyncio.create_task(task) for task in tasks]
-            for running_task in running_tasks:
-                grades_change, ranks_change, exams_change, failure_qq = await running_task
-                for qq, pic_path, grades_msg in grades_change:
-                    await bot.send_private_msg(user_id=int(qq), message=f"出新成绩啦！\n{grades_msg}")
-                    await bot.send_private_msg(user_id=int(qq), message=MessageSegment.image(Path(pic_path)))
-                    logger.info(f"{qq}的新成绩已推送\n{grades_msg}")
-                    await asyncio.sleep(2)
-                for qq, rank_old, rank, rank_msg in ranks_change:
-                    await bot.send_private_msg(user_id=int(qq),
-                                            message=f"你的rank发生了变化,{rank_old}->{rank}\n{rank_msg}")
-                    await asyncio.sleep(2)
-                for qq, new_exams, exams_msg in exams_change:
-                    new_courses = [new_exam['course'] for new_exam in new_exams]
-                    new_course_msg = ""
-                    for new_course in new_courses:
-                        new_course_msg += new_course + "\n"
-                    new_course_msg = new_course_msg[:-1]
-                    await bot.send_private_msg(user_id=int(qq),
-                                            message=f"你有新的考试有：\n"+new_course_msg)
-                    await bot.send_private_msg(user_id=int(qq),
-                                            message=f"你的全部未结束考试有：\n"+exams_msg)
-                    await asyncio.sleep(2)
-                for qq in failure_qq:
-                    await bot.send_private_msg(user_id=int(qq), message=f"你的登陆信息已失效，请输入 翱翔 重新登陆")
+            tasks = [asyncio.create_task(check_grades_and_ranks_and_exams(qq, bot)) for qq in qq_all]
+            await asyncio.gather(*tasks)
             logger.info(f"本次检测完毕")
         else:
             logger.info(f"bot失联或不在检测时间段中，不检测")
-    except MatcherException:
-        raise
     except Exception as e:
         logger.error(f"出错了{e}")
         if global_config.superusers:

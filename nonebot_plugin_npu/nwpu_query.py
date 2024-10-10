@@ -214,13 +214,11 @@ class NwpuQuery():
         soup = BeautifulSoup(response.text, 'html.parser')
         student_id_element_1 = soup.find('input', {'id': 'studentId'})
         student_id_element_2 = soup.find('button', {'class': 'footer btn btn-primary'})
+        student_assoc = None
         if student_id_element_1:
             student_assoc = student_id_element_1['value']
         elif student_id_element_2:
             student_assoc = student_id_element_2['value']
-        else:
-            logger.info("未找到student_assoc")
-            raise ValueError(f"{folder_path} 未找到 student_assoc")
         if student_assoc:
             self.student_assoc = student_assoc
             info = {"student_assoc": self.student_assoc}
