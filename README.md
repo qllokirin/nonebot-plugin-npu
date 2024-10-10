@@ -43,7 +43,24 @@ nonebot-plugin-npu，翱翔门户成绩监控插件，能获取成绩、排名�
 # 🔔 安装
 
 <details>
-<summary>法一：pip安装</summary>
+<summary>法一：nb plugin安装方法[推荐]</summary>
+
+安装插件
+
+```
+nb plugin install nonebot-plugin-npu
+```
+
+安装wkhtmltopdf
+
+```
+打开https://wkhtmltopdf.org/downloads.html安装
+```
+
+</details>
+
+<details>
+<summary>法二：pip安装</summary>
 
 * 1.激活python环境
 
@@ -73,21 +90,6 @@ plugins = ["nonebot-plugin-npu"]
 
 </details>
 
-<details>
-<summary>法二：nb plugin安装方法</summary>
-安装插件
-
-```
-nb plugin install nonebot-plugin-npu
-```
-
-安装wkhtmltopdf
-
-```
-打开https://wkhtmltopdf.org/downloads.html安装
-```
-
-</details>
 
 # 📣配置
 
