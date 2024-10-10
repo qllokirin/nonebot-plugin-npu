@@ -63,7 +63,7 @@ async def handel_function(bot: Bot, event: Union[PrivateMessageEvent, GroupMessa
     try:
         nwpu_query_class = NwpuQuery()
         folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
-        if msg := args.extract_plain_text():
+        if msg := args.extract_plain_text().strip():
             cookies_path = os.path.join(folder_path, 'cookies.txt')
             if os.path.isfile(cookies_path):
                 if msg == "排考" or msg == "考试" or msg == "排考信息" or msg == "考试信息":
@@ -240,7 +240,7 @@ async def handel_function(bot: Bot, event: Union[PrivateMessageEvent, GroupMessa
                 # 输入账号
                 if (account := await prompt("请输入账号")) is None:
                     await nwpu.finish("已超时，本次登陆结束")
-                account = account.extract_plain_text()
+                account = account.extract_plain_text().strip()
                 # 输入密码
                 await nwpu.send("请输入密码")
                 @waiter(waits=["message"], keep_session=True)
@@ -349,7 +349,7 @@ async def handel_function(bot: Bot, event: Union[PrivateMessageEvent, GroupMessa
             logger.info(f"发送错误日志给SUPERUSERS")
             for superuser in global_config.superusers:
                 await bot.send_private_msg(user_id=int(superuser), 
-                                           message=MessageSegment.text(f"{event.get_user_id()}使用翱翔{args.extract_plain_text()}时发生错误\n{e}") + MessageSegment.image(f"https://q.qlogo.cn/headimg_dl?dst_uin={event.get_user_id()}&spec=640"))
+                                           message=MessageSegment.text(f"{event.get_user_id()}使用翱翔{args.extract_plain_text().strip()}时发生错误\n{e}") + MessageSegment.image(f"https://q.qlogo.cn/headimg_dl?dst_uin={event.get_user_id()}&spec=640"))
         await nwpu.finish("出错了，请重试")
 
 '''
@@ -570,7 +570,7 @@ async def handel_function(bot: Bot, event: Event, args: Message = CommandArg()):
         folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
-        if msg := args.extract_plain_text():
+        if msg := args.extract_plain_text().strip():
             if msg == "查询":
                 folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
                 electric_path = os.path.join(folder_path, 'electric.json')
@@ -587,9 +587,9 @@ async def handel_function(bot: Bot, event: Event, args: Message = CommandArg()):
                 msg,campaus_all = await get_campaus()
                 if (campaus_msg := await prompt(msg)) is None:
                     await nwpu_electric.finish("已超时，本次绑定结束")
-                information_all += campaus_all[int(campaus_msg.extract_plain_text())]['name'] + " "
+                information_all += campaus_all[int(campaus_msg.extract_plain_text().strip())]['name'] + " "
                 folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
-                campaus = campaus_all[int(campaus_msg.extract_plain_text())]['value']
+                campaus = campaus_all[int(campaus_msg.extract_plain_text().strip())]['value']
                 msg_list,building_all = await get_building(campaus)
                 msg_all = []
                 for msg in msg_list:
@@ -597,8 +597,8 @@ async def handel_function(bot: Bot, event: Event, args: Message = CommandArg()):
                 await send_forward_msg(bot, event, "building_all", str(event.self_id), msg_all)
                 if (building_msg := await prompt("")) is None:
                     await nwpu.nwpu_electric("已超时，本次绑定结束")
-                information_all += building_all[int(building_msg.extract_plain_text())]['name'] + " "
-                building = building_all[int(building_msg.extract_plain_text())]['value']
+                information_all += building_all[int(building_msg.extract_plain_text().strip())]['name'] + " "
+                building = building_all[int(building_msg.extract_plain_text().strip())]['value']
                 msg_list,room_all = await get_room(campaus,building)
                 msg_all = []
                 for msg in msg_list:
@@ -606,8 +606,8 @@ async def handel_function(bot: Bot, event: Event, args: Message = CommandArg()):
                 await send_forward_msg(bot, event, "room_all", str(event.self_id), msg_all)
                 if (room_msg := await prompt("")) is None:
                     await nwpu.finish("已超时，本次绑定结束")
-                information_all += room_all[int(room_msg.extract_plain_text())]['name']
-                room = room_all[int(room_msg.extract_plain_text())]['value']
+                information_all += room_all[int(room_msg.extract_plain_text().strip())]['name']
+                room = room_all[int(room_msg.extract_plain_text().strip())]['value']
                 data = {'campaus':campaus,'building':building,'room':room}
                 electric_left = await get_electric_left(campaus, building, room)
                 with open(os.path.join(folder_path, 'electric.json'), 'w', encoding='utf-8') as f:
@@ -634,7 +634,7 @@ async def handel_function(bot: Bot, event: Event, args: Message = CommandArg()):
             logger.info(f"发送错误日志给SUPERUSERS")
             for superuser in global_config.superusers:
                 await bot.send_private_msg(user_id=int(superuser), 
-                                           message=MessageSegment.text(f"{event.get_user_id()}使用翱翔电费{args.extract_plain_text()}发生错误\n{e}") + MessageSegment.image(f"https://q.qlogo.cn/headimg_dl?dst_uin={event.get_user_id()}&spec=640"))
+                                           message=MessageSegment.text(f"{event.get_user_id()}使用翱翔电费{args.extract_plain_text().strip()}发生错误\n{e}") + MessageSegment.image(f"https://q.qlogo.cn/headimg_dl?dst_uin={event.get_user_id()}&spec=640"))
         await nwpu_electric.finish("出错了，请重试")
 
 async def get_nwpu_electric():
