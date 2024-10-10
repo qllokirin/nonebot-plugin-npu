@@ -1,7 +1,6 @@
 <!-- markdownlint-disable MD033 MD036 MD041 -->
 
 <div align="center">
-
 <a href="https://v2.nonebot.dev/store">
     <img src="./images/NoneBotPlugin.svg" width="300" alt="logo">
 </a>
@@ -69,15 +68,24 @@ nonebot-plugin-npu，翱翔门户成绩监控插件，能获取成绩、排名�
 打开 nonebot2 项目根目录下的 `pyproject.toml` 文件, 在 `[tool.nonebot]` 部分追加写入
 
 ```
-plugins = ["nonebot-plugin-apscheduler", "nonebot-plugin-waiter", "nonebot-plugin-npu"]
+plugins = ["nonebot-plugin-npu"]
 ```
 
 </details>
 
 <details>
 <summary>法二：nb plugin安装方法</summary>
+安装插件
 
-......
+```
+nb plugin install nonebot-plugin-npu
+```
+
+安装wkhtmltopdf
+
+```
+打开https://wkhtmltopdf.org/downloads.html安装
+```
 
 </details>
 
