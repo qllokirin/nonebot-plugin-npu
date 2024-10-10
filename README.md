@@ -1,10 +1,10 @@
 <!-- markdownlint-disable MD033 MD036 MD041 -->
 
 <div align="center">
-  <a href="https://v2.nonebot.dev/store"><img src="https://github.com/A-kirami/nonebot-plugin-template/blob/resources/nbp_logo.png" width="180" height="180" alt="NoneBotPluginLogo"></a>
-  <br>
-  <p><img src="https://github.com/A-kirami/nonebot-plugin-template/blob/resources/NoneBotPlugin.svg" width="240" alt="NoneBotPluginText"></p>
-</div>
+
+<a href="https://v2.nonebot.dev/store">
+    <img src="./images/NoneBotPlugin.svg" width="300" alt="logo">
+</a>
 
 <div align="center">
 
@@ -43,7 +43,7 @@ nonebot-plugin-npu，翱翔门户成绩监控插件，能获取成绩、排名�
 - [x] 排考检测
 - [x] 课表提取
 
-# 💿 安装
+# 🔔 安装
 
 <details>
 <summary>法一：pip安装</summary>
@@ -82,6 +82,8 @@ plugins = ["nonebot-plugin-apscheduler", "nonebot-plugin-waiter", "nonebot-plugi
 ......
 
 </details>
+
+# 📣配置
 
 在`.env.prod`/`.env`中写入以下字段，也可不填，默认值如下
 
@@ -135,7 +137,7 @@ npu_end_check_hour=22
 
 </details>
 
-# 致谢
+# 🤩致谢
 
 翱翔门户登陆以及数据获取参考了：https://github.com/cheanus/Automation/blob/main/GradesMonitorLinux.py
 
