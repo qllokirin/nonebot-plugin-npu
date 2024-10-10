@@ -6,8 +6,6 @@
     <img src="./images/NoneBotPlugin.svg" width="300" alt="logo">
 </a>
 
-<div align="center">
-
 # nonebot-plugin-npu
 
 _✨ 西工大翱翔门户成绩监控插件，能获取成绩、排名、绩点，当出现新成绩时推送给使用者 ✨_
