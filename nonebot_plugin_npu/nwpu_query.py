@@ -34,6 +34,7 @@ from bs4 import BeautifulSoup
 import openpyxl
 import copy
 from .utils import handle_training_program_data, handle_completed_and_incomplete_course, max_dict_depth, write_to_excel, fromat_excel
+import urllib.parse
 
 class NwpuQuery():
     def __init__(self):
@@ -58,6 +59,8 @@ class NwpuQuery():
         self.headers2['X-Requested-With'] = 'XMLHttpRequest'
         self.headers3 = self.headers2.copy()
         self.headers3['Content-Type'] = 'application/json; charset=UTF-8'
+        self.headers4 = self.headers3.copy()
+        self.headers4['Content-Type'] = 'application/x-www-form-urlencoded; charset=UTF-8'
         self.student_assoc = None
         self.client = httpx.AsyncClient(follow_redirects=True)
 
@@ -235,9 +238,6 @@ class NwpuQuery():
         try:
             URL = 'https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet'
             response = await self.client.get(URL, headers=self.headers, timeout=5)
-            response = await self.client.get(
-                'https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet/semester-index/' + self.student_assoc,
-                headers=self.headers, timeout=5)
             semester = re.findall('<option value="(.+?)"', response.text)
             grades = []
             grades_msg = []
@@ -369,6 +369,35 @@ class NwpuQuery():
                 break
         return course_table_path, course_table_name
     
+    # 获取综测排名
+    async def get_water_rank(self):
+        URL = 'https://xgpt.nwpu.edu.cn/'
+        response = await self.client.get(URL, headers=self.headers)
+        URL = 'https://xgpt.nwpu.edu.cn/xsfw/sys/xggzptapp/modules/xszm/getFzxx.do'
+        response = await self.client.post(URL, headers=self.headers, data={"data" : urllib.parse.quote(str({}))})
+        URL = 'https://xgpt.nwpu.edu.cn/xsfw/sys/xggzptapp/modules/xszm/getFxYy.do'
+        response = await self.client.post(URL, headers=self.headers4, data={"data" : urllib.parse.quote(str({"FZDM" : [data["FZDM"] for data in json.loads(response.text)["data"] if data["FZMC"] == "学生服务"][0]}))})
+        URL = f'https://xgpt.nwpu.edu.cn/xsfw/sys/xggzptapp/modules/pubWork/appShow.do?id={[data["YYID"] for data in json.loads(response.text)["data"] if data["YYMC"] == "综合测评"][0]}'
+        response = await self.client.get(URL, headers=self.headers)
+        if "选择身份" in response.text:
+            role_id = re.search(r',{"id":"(.*?)","text":"本科生组"', response.text).group(1)
+            URL = 'https://xgpt.nwpu.edu.cn/xsfw/sys/funauthapp/selectRole.do'
+            response = await self.client.post(URL, headers=self.headers4, data={"ROLEID": role_id, "APPNAME": "zhcptybbapp"})
+            URL = 'https://xgpt.nwpu.edu.cn/xsfw/sys/zhcptybbapp/*default/index.do'
+            response = await self.client.get(URL, headers=self.headers)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        script_tag = soup.find('script', text=re.compile(r'var pageMeta'))
+        begin_year = int(re.search(r'"userId":"(\d+)"', script_tag.string).group(1)[:4])
+        now_year = int(re.search(r'"curXN":(\d+)', script_tag.string).group(1)[:4])
+        URL = 'https://xgpt.nwpu.edu.cn/xsfw/sys/zhcptybbapp/modules/evaluationApplyController/getEvaluationResultsByXn.do'
+        water_rank_msg = ""
+        for year in range(begin_year, now_year+1):
+            response = await self.client.post(URL, headers=self.headers4, data={"data" : urllib.parse.quote(str({ "CPXN": str(year), "CPXQ":"3" }))})
+            result = response.json()
+            if result["data"]:
+                water_rank_msg += f'{year}学年 总成绩{result["data"]["ZCJ"]}\n专业排名 {result["data"]["ZYNJPM"]}/{result["data"]["ZYNJRS"]} 班级排名 {result["data"]["BJPM"]}/{result["data"]["BJRS"]}\n\n'
+        return water_rank_msg[:-2]
+
     # 获取培养方案完成情况
     async def get_training_program(self, folder_path):
         URL = f'https://jwxt.nwpu.edu.cn/student/for-std/program/root-module-json/{self.student_assoc}'

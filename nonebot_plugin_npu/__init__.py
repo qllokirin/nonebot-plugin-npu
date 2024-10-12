@@ -147,6 +147,12 @@ async def handel_function(bot: Bot, event: Union[PrivateMessageEvent, GroupMessa
                         elif msg == "排名":
                             rank_msg, _ = await nwpu_query_class.get_rank(folder_path)
                             await nwpu.finish(rank_msg)
+                        elif msg == "综测排名":
+                            water_rank_msg = await nwpu_query_class.get_water_rank()
+                            if water_rank_msg:
+                                await nwpu.finish(water_rank_msg)
+                            else:
+                                await nwpu.finish("暂无综测排名信息")
                         elif msg == "全部排考" or msg == "全部考试" or msg == "全部排考信息" or msg == "全部考试信息":
                             await nwpu.send(f"正在获取全部考试信息，请等待")
                             exams_msg, _ = await nwpu_query_class.get_exams(folder_path, True)
@@ -500,7 +506,7 @@ async def check_grades_and_ranks_and_exams(qq, bot):
         if global_config.superusers:
             logger.info(f"发送错误日志给SUPERUSERS")
             for superuser in global_config.superusers:
-                await bot.send_private_msg(user_id=int(superuser), message=f"检测定时任务 发生错误\n{e}")
+                await bot.send_private_msg(user_id=int(superuser), message=f"{qq}的检测定时任务 发生错误\n{e}")
 
 
 @driver.on_bot_disconnect
@@ -512,10 +518,23 @@ async def disconnect():
     scheduler.pause_job('check_new_info')
     scheduler.pause_job('check_power')
 
+async def test():
+    '''测试用函数 就不用每次都发消息测试了'''
+    nwpu_query_class = NwpuQuery()
+    folder_path = os.path.join(os.path.dirname(__file__), 'data', list(global_config.superusers)[0])
+    cookies_path = os.path.join(folder_path, 'cookies.txt')
+    await nwpu_query_class.use_recent_cookies_login(cookies_path)
+    if os.path.isfile(os.path.join(folder_path, 'info.json')):
+        with open((os.path.join(folder_path, 'info.json')), 'r', encoding='utf-8') as f:
+            nwpu_query_class.student_assoc = json.loads(f.read())["student_assoc"]
+    water_rank_msg = await nwpu_query_class.get_water_rank()
+    logger.info(water_rank_msg)
+    await nwpu_query_class.close_client()
 
 @driver.on_bot_connect
 async def connect():
     """bot接入 启动定时任务"""
+    # await test()
     global if_connected
     if_connected = True
     logger.info("bot接入，启动定时任务")
