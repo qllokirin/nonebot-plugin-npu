@@ -59,7 +59,7 @@ async def send_forward_msg(
 
 
 @nwpu.handle()
-async def handel_function(bot: Bot, event: Union[PrivateMessageEvent, GroupMessageEvent], args: Message = CommandArg()):
+async def nwpu_handel_function(bot: Bot, event: Union[PrivateMessageEvent, GroupMessageEvent], args: Message = CommandArg()):
     try:
         nwpu_query_class = NwpuQuery()
         folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
@@ -370,29 +370,7 @@ async def _(
     try:
         if event.is_tome():
             logger.info('被戳一戳力')
-            nwpu_query_class = NwpuQuery()
-            folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
-            cookies_path = os.path.join(folder_path, 'cookies.txt')
-            if os.path.isfile(cookies_path):
-                    await poke_noetify.send("正在登入翱翔门户")
-                    if await nwpu_query_class.use_recent_cookies_login(cookies_path):
-                        if os.path.isfile(os.path.join(folder_path, 'info.json')):
-                            with open((os.path.join(folder_path, 'info.json')), 'r', encoding='utf-8') as f:
-                                nwpu_query_class.student_assoc = json.loads(f.read())["student_assoc"]
-                        else:
-                            if not await nwpu_query_class.get_student_assoc(folder_path):
-                                logger.error(f"获取信息失败")
-                                raise Exception("获取信息失败")
-                        rank_msg, _ = await nwpu_query_class.get_rank(folder_path)
-                        await nwpu_query_class.close_client()
-                        await poke_noetify.finish(rank_msg)
-                    else:
-                        shutil.rmtree(folder_path)
-                        await nwpu_query_class.close_client()
-                        await poke_noetify.finish("登陆失败 cookie过期，请输入 翱翔 进行登陆")
-            else:
-                await nwpu_query_class.close_client()
-                await poke_noetify.finish("你还没有登陆过，请输入 翱翔 进行登陆")
+            await nwpu_handel_function(bot, event, Message(MessageSegment.text("排名")))
     except MatcherException:
         raise
     except Exception as e:
@@ -579,7 +557,7 @@ async def check_grades_and_exams():
 nwpu_electric = on_command("翱翔电费", rule=to_me(), priority=10, block=True)
 
 @nwpu_electric.handle()
-async def handel_function(bot: Bot, event: Event, args: Message = CommandArg()):
+async def _(bot: Bot, event: Event, args: Message = CommandArg()):
     try:
         folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
         if not os.path.exists(folder_path):
