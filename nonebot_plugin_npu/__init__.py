@@ -350,12 +350,12 @@ async def handel_function(bot: Bot, event: Union[PrivateMessageEvent, GroupMessa
         await nwpu.finish("文件发送失败，刚加没多久的新好友大概率出现此问题，请等待几天后重试")
     except Exception as e:
         await nwpu_query_class.close_client()
-        logger.error(f"出错了{e}")
+        logger.error(f"出错了{e!r}")
         if global_config.superusers:
             logger.info(f"发送错误日志给SUPERUSERS")
             for superuser in global_config.superusers:
                 await bot.send_private_msg(user_id=int(superuser), 
-                                           message=MessageSegment.text(f"{event.get_user_id()}使用翱翔{args.extract_plain_text().strip()}时发生错误\n{e}") + MessageSegment.image(f"https://q.qlogo.cn/headimg_dl?dst_uin={event.get_user_id()}&spec=640"))
+                                           message=MessageSegment.text(f"{event.get_user_id()}使用翱翔{args.extract_plain_text().strip()}时发生错误\n{e!r}") + MessageSegment.image(f"https://q.qlogo.cn/headimg_dl?dst_uin={event.get_user_id()}&spec=640"))
         await nwpu.finish("出错了，请重试")
 
 '''
@@ -396,12 +396,12 @@ async def _(
     except MatcherException:
         raise
     except Exception as e:
-        logger.error(f"出错了{e}")
+        logger.error(f"出错了{e!r}")
         if global_config.superusers:
             logger.info(f"发送错误日志给SUPERUSERS")
             for superuser in global_config.superusers:
                 await bot.send_private_msg(user_id=int(superuser), 
-                                           message=MessageSegment.text(f"{event.get_user_id()}使用戳一戳时发生错误\n{e}") + MessageSegment.image(f"https://q.qlogo.cn/headimg_dl?dst_uin={event.get_user_id()}&spec=640"))
+                                           message=MessageSegment.text(f"{event.get_user_id()}使用戳一戳时发生错误\n{e!r}") + MessageSegment.image(f"https://q.qlogo.cn/headimg_dl?dst_uin={event.get_user_id()}&spec=640"))
         await poke_noetify.finish("出错了，请重试")
 
 
@@ -497,16 +497,16 @@ async def check_grades_and_ranks_and_exams(qq, bot):
             logger.info("bot失联，终止更新")
         await nwpu_query_class_sched.close_client()
     except httpx.TimeoutException as e:
-        logger.error(f"TimeoutException httpx超时{e}")
+        logger.error(f"TimeoutException httpx超时{e!r}")
         await nwpu_query_class_sched.close_client()
     except Exception as e:
-        logger.error(f"定时任务出现新错误{e}")
+        logger.error(f"定时任务出现新错误{e!r}")
         await nwpu_query_class_sched.close_client()
-        logger.error(f"出错了{e}")
+        logger.error(f"出错了{e!r}")
         if global_config.superusers:
             logger.info(f"发送错误日志给SUPERUSERS")
             for superuser in global_config.superusers:
-                await bot.send_private_msg(user_id=int(superuser), message=f"{qq}的检测定时任务 发生错误\n{e}")
+                await bot.send_private_msg(user_id=int(superuser), message=f"{qq}的检测定时任务 发生错误\n{e!r}")
 
 
 @driver.on_bot_disconnect
@@ -569,12 +569,12 @@ async def check_grades_and_exams():
         else:
             logger.info(f"bot失联或不在检测时间段中，不检测")
     except Exception as e:
-        logger.error(f"出错了{e}")
+        logger.error(f"出错了{e!r}")
         if global_config.superusers:
             logger.info(f"发送错误日志给SUPERUSERS")
             for superuser in global_config.superusers:
                 await bot.send_private_msg(user_id=int(superuser), 
-                                           message=f"检测定时任务 发生错误\n{e}")
+                                           message=f"检测定时任务 发生错误\n{e!r}")
 
 nwpu_electric = on_command("翱翔电费", rule=to_me(), priority=10, block=True)
 
@@ -643,12 +643,12 @@ async def handel_function(bot: Bot, event: Event, args: Message = CommandArg()):
     except MatcherException:
         raise
     except Exception as e:
-        logger.error(f"出错了{e}")
+        logger.error(f"出错了{e!r}")
         if global_config.superusers:
             logger.info(f"发送错误日志给SUPERUSERS")
             for superuser in global_config.superusers:
                 await bot.send_private_msg(user_id=int(superuser), 
-                                           message=MessageSegment.text(f"{event.get_user_id()}使用翱翔电费{args.extract_plain_text().strip()}发生错误\n{e}") + MessageSegment.image(f"https://q.qlogo.cn/headimg_dl?dst_uin={event.get_user_id()}&spec=640"))
+                                           message=MessageSegment.text(f"{event.get_user_id()}使用翱翔电费{args.extract_plain_text().strip()}发生错误\n{e!r}") + MessageSegment.image(f"https://q.qlogo.cn/headimg_dl?dst_uin={event.get_user_id()}&spec=640"))
         await nwpu_electric.finish("出错了，请重试")
 
 async def get_nwpu_electric():
@@ -687,9 +687,9 @@ async def check_electric():
     except MatcherException:
         raise
     except Exception as e:
-        logger.error(f"出错了{e}")
+        logger.error(f"出错了{e!r}")
         if global_config.superusers:
             logger.info(f"发送错误日志给SUPERUSERS")
             for superuser in global_config.superusers:
                 await bot.send_private_msg(user_id=int(superuser), 
-                                           message=f"电费定时任务 发生错误\n{e}")
+                                           message=f"电费定时任务 发生错误\n{e!r}")
