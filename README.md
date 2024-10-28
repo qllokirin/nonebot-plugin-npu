@@ -97,6 +97,7 @@ plugins = ["nonebot-plugin-npu"]
 
 ```
 npu_check_time=60
+npu_electric_check_time=30
 npu_if_check_grades=true
 npu_if_check_rank=false
 npu_if_check_exams=true
@@ -108,6 +109,7 @@ npu_end_check_hour=22
 |        参数         |  值  |          说明          |
 | :-----------------: | :--: | :--------------------: |
 |   npu_check_time    | int  | 每多少分钟检测一次成绩 |
+|   npu_electric_check_time    | int  | 每多少分钟检测一次电费 |
 | npu_if_check_grades | bool |      是否检测成绩      |
 |  npu_if_check_rank  | bool |      是否检测排名      |
 | npu_if_check_exams  | bool |     是否检测新考试     |

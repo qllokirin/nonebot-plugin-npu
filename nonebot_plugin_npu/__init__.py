@@ -522,7 +522,7 @@ async def connect():
         await scheduler.get_job('check_new_info').func()
 
 @scheduler.scheduled_job("interval", minutes=global_config.npu_check_time, id="check_new_info")
-async def check_grades_and_exams():
+async def check_grades_and_ranks_and_exams_scheduled():
     """
     定时任务 检测新成绩/考试
     """
@@ -629,39 +629,44 @@ async def _(bot: Bot, event: Event, args: Message = CommandArg()):
                                            message=MessageSegment.text(f"{event.get_user_id()}使用翱翔电费{args.extract_plain_text().strip()}发生错误\n{e!r}") + MessageSegment.image(f"https://q.qlogo.cn/headimg_dl?dst_uin={event.get_user_id()}&spec=640"))
         await nwpu_electric.finish("出错了，请重试")
 
-async def get_nwpu_electric():
-    logger.info('检查宿舍电费')
-    qq_all = []
-    data_folder_path = os.path.join(os.path.dirname(__file__), 'data')
-    if os.path.exists(data_folder_path):
-        qq_all = [f for f in os.listdir(data_folder_path) if os.path.exists(os.path.join(data_folder_path, f, 'electric.json'))]
-        if qq_all:
-            logger.info(f"已绑定宿舍的全部QQ号：{qq_all}")
-        else:
-            logger.info("没有账号绑定")
-    else:
-        logger.info("没有data文件夹")
-    
-    electric_all = []
-    for qq in qq_all:
-        folder_path = os.path.join(os.path.dirname(__file__), 'data', qq)
-        electric_path = os.path.join(folder_path, 'electric.json')
+async def check_electric(qq, bot):
+    try:
+        sleep_time = random.uniform(0, global_config.npu_electric_check_time * 60)
+        await asyncio.sleep(sleep_time)
+        electric_path = os.path.join(os.path.dirname(__file__), 'data', qq, 'electric.json')
         with open(electric_path, 'r', encoding='utf-8') as f:
             electric_information = json.loads(f.read())
         electric_left = await get_electric_left(electric_information['campaus'],electric_information['building'],electric_information['room'])
         logger.info(f'{qq}电费还剩{electric_left}')
         if electric_left < 25:
-            electric_all.append([qq,electric_left])
-    return electric_all
+            logger.info(f'{qq}电费小于25，推送消息')
+            await bot.send_private_msg(user_id=int(qq), message=f"电费不足25，当前电费{electric_left}，请及时缴纳\n若不想收到提醒消息，可发送 翱翔电费解绑 进行解除绑定")
+    except Exception as e:
+        logger.error(f"出错了{e!r}")
+        if global_config.superusers:
+            logger.info(f"发送错误日志给SUPERUSERS")
+            for superuser in global_config.superusers:
+                await bot.send_private_msg(user_id=int(superuser), 
+                                           message=f"{qq}检测电费定时任务 发生错误\n{e!r}")
 
 @scheduler.scheduled_job("cron", hour="12", id="check_power")
-async def check_electric():
+async def check_electric_scheduled():
     try:
-        electric_all = await get_nwpu_electric()
         bot: Bot = get_bot()
-        for qq,electric_left in electric_all:
-            await bot.send_private_msg(user_id=int(qq), message=f"电费不足25，当前电费{electric_left}，请及时缴纳\n若不想收到提醒消息，可发送 翱翔电费解绑 进行解除绑定")
-            await asyncio.sleep(2)
+        logger.info('检查宿舍电费')
+        qq_all = []
+        data_folder_path = os.path.join(os.path.dirname(__file__), 'data')
+        if os.path.exists(data_folder_path):
+            qq_all = [f for f in os.listdir(data_folder_path) if os.path.exists(os.path.join(data_folder_path, f, 'electric.json'))]
+            if qq_all:
+                logger.info(f"已绑定宿舍的全部QQ号：{qq_all}")
+            else:
+                logger.info("没有账号绑定")
+        else:
+            logger.info("没有data文件夹")
+        tasks = [asyncio.create_task(check_electric(qq, bot)) for qq in qq_all]
+        await asyncio.gather(*tasks)
+        logger.info(f"本次电费检测完毕")
     except MatcherException:
         raise
     except Exception as e:
