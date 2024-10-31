@@ -11,13 +11,13 @@ require("nonebot_plugin_apscheduler")
 require("nonebot_plugin_waiter")
 from nonebot_plugin_apscheduler import scheduler
 from nonebot_plugin_waiter import waiter,prompt
-import os, shutil, json, asyncio, random, httpx
+import os, shutil, json, asyncio, random, httpx, glob
 from datetime import datetime
 from typing import List, Union
 from pathlib import Path
 from .config import Config
 from .nwpu_query import NwpuQuery
-from .utils import generate_img_from_html, generate_grades_to_msg, get_exams_msg
+from .utils import generate_img_from_html, generate_grades_to_msg, get_exams_msg, if_begin_lesson_day_is_tomorrow
 from .nwpu_electric import get_campaus, get_building, get_room, get_electric_left
 
 __plugin_meta__ = PluginMetadata(
@@ -551,8 +551,56 @@ async def check_grades_and_ranks_and_exams_scheduled():
         if global_config.superusers:
             logger.info(f"发送错误日志给SUPERUSERS")
             for superuser in global_config.superusers:
-                await bot.send_private_msg(user_id=int(superuser), 
+                await bot.send_private_msg(user_id=int(superuser),
                                            message=f"检测定时任务 发生错误\n{e!r}")
+
+async def check_new_lesson(qq, bot):
+    try:
+        sleep_time = random.uniform(0, 30 * 60)
+        await asyncio.sleep(sleep_time)
+        for file in glob.glob(os.path.join(os.path.join(os.path.dirname(__file__), 'data', qq), '*-*.html')):
+            if os.path.basename(file).endswith(('秋.html', '春.html', '夏.html')):
+                with open(file, 'r', encoding='utf-8') as f:
+                    data = json.loads(f.read())
+                if msg := if_begin_lesson_day_is_tomorrow(data):
+                    await bot.send_private_msg(user_id=int(qq), message=f"明天有新课程开课，别忘记啦\n\n{msg}")
+                    logger.info(f"{qq}明天有新课程\n{msg}\n已推送")
+    except Exception as e:
+        logger.error(f"定时任务出现新错误{e!r}")
+        logger.error(f"出错了{e!r}")
+        if global_config.superusers:
+            logger.info(f"发送错误日志给SUPERUSERS")
+            for superuser in global_config.superusers:
+                await bot.send_private_msg(user_id=int(superuser), message=f"{qq}的检测check_new_lesson定时任务 发生错误\n{e!r}")
+
+@scheduler.scheduled_job("interval", hour="19", id="check_new_lesson")
+async def check_new_lesson_scheduled():
+    """
+    检测明天是否有课程
+    """
+    try:
+        bot: Bot = get_bot()
+        # 获取全部已登陆的QQ号
+        qq_all = []
+        data_folder_path = os.path.join(os.path.dirname(__file__), 'data')
+        if os.path.exists(data_folder_path):
+            qq_all = [f for f in os.listdir(data_folder_path) if os.path.isdir(os.path.join(data_folder_path, f))]
+            if qq_all:
+                logger.info(f"已登录的全部QQ号：{qq_all}")
+            else:
+                logger.info("没有账号登陆")
+        else:
+            logger.info("没有data文件夹")
+        tasks = [asyncio.create_task(check_new_lesson(qq, bot)) for qq in qq_all]
+        await asyncio.gather(*tasks)
+        logger.info(f"本次新课程检测完毕")
+    except Exception as e:
+        logger.error(f"出错了{e!r}")
+        if global_config.superusers:
+            logger.info(f"发送错误日志给SUPERUSERS")
+            for superuser in global_config.superusers:
+                await bot.send_private_msg(user_id=int(superuser), 
+                                           message=f"检测新课程定时任务 发生错误\n{e!r}")
 
 nwpu_electric = on_command("翱翔电费", rule=to_me(), priority=10, block=True)
 

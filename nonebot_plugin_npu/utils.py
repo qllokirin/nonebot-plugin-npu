@@ -1,6 +1,7 @@
 import imgkit
 import os
 import json
+from datetime import datetime, timedelta
 from openpyxl.styles import Border, Side, Alignment, Font, PatternFill, Alignment
 from nonebot.utils import run_sync
 
@@ -321,3 +322,38 @@ def fromat_excel(sheet, completed_courses_all):
     for col in sheet.columns:
         col_letter = col[0].column_letter
         sheet.column_dimensions[col_letter].width = 20
+
+def if_begin_lesson_day_is_tomorrow(data):
+    '''
+    计算所有课程开始的日期是否是明天
+    '''
+    result = {}
+    for course in data['studentTableVm']['activities']:
+        name = course["courseName"]
+        week_min = min(course["weekIndexes"])
+        if name in result:
+            existing = result[name]
+            existing_week_min = min(existing["weekIndexes"])
+            if (week_min < existing_week_min or
+                    (week_min == existing_week_min and course["weekday"] < existing["weekday"]) or
+                    (week_min == existing_week_min and course["weekday"] == existing["weekday"] and datetime.strptime(course["startTime"], "%H:%M") < datetime.strptime(existing["startTime"], "%H:%M"))):
+                result[name] = course
+        else:
+            result[name] = course
+    final_courses = list(result.values())
+
+    result_all = []
+    for activity in final_courses:
+        begin_data = data['studentTableVm']['arrangedLessonSearchVms'][0]['semester']['startDate']
+        date_obj = datetime.strptime(begin_data, '%Y-%m-%d')
+        date_obj += timedelta(days=(min(activity['weekIndexes']) - 1) * 7)
+        sunday_of_current_week = date_obj + timedelta(days=(activity['weekday'] - 1))
+        if date_obj > sunday_of_current_week:
+            sunday_of_current_week += timedelta(days=7)
+        if sunday_of_current_week.date() == (datetime.now() + timedelta(days=1)).date():
+            result_all.append(activity)
+    msg = "\n--------------------\n".join(
+        f"{res['courseName']}\n{res['room']}\n{res['startTime']}"
+        for res in result_all
+    )
+    return msg
