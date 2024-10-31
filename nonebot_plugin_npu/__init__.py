@@ -573,7 +573,7 @@ async def check_new_lesson(qq, bot):
             for superuser in global_config.superusers:
                 await bot.send_private_msg(user_id=int(superuser), message=f"{qq}的检测check_new_lesson定时任务 发生错误\n{e!r}")
 
-@scheduler.scheduled_job("interval", hour="19", id="check_new_lesson")
+@scheduler.scheduled_job("cron", hour="19", id="check_new_lesson")
 async def check_new_lesson_scheduled():
     """
     检测明天是否有课程
