@@ -15,6 +15,7 @@ import os, shutil, json, asyncio, random, httpx, glob
 from datetime import datetime
 from typing import List, Union
 from pathlib import Path
+from .test import test
 from .config import Config
 from .nwpu_query import NwpuQuery
 from .utils import generate_img_from_html, generate_grades_to_msg, get_exams_msg, if_begin_lesson_day_is_tomorrow
@@ -146,6 +147,9 @@ async def nwpu_handel_function(bot: Bot, event: Union[PrivateMessageEvent, Group
                             await nwpu.finish()
                         elif msg == "排名":
                             rank_msg, _ = await nwpu_query_class.get_rank(folder_path)
+                            await nwpu.finish(rank_msg)
+                        elif msg == "全部排名":
+                            rank_msg, _ = await nwpu_query_class.get_rank(folder_path, True)
                             await nwpu.finish(rank_msg)
                         elif msg == "综测排名":
                             water_rank_msg = await nwpu_query_class.get_water_rank()
@@ -496,23 +500,10 @@ async def disconnect():
     scheduler.pause_job('check_new_info')
     scheduler.pause_job('check_power')
 
-async def test():
-    '''测试用函数 就不用每次都发消息测试了'''
-    nwpu_query_class = NwpuQuery()
-    folder_path = os.path.join(os.path.dirname(__file__), 'data', list(global_config.superusers)[0])
-    cookies_path = os.path.join(folder_path, 'cookies.txt')
-    await nwpu_query_class.use_recent_cookies_login(cookies_path)
-    if os.path.isfile(os.path.join(folder_path, 'info.json')):
-        with open((os.path.join(folder_path, 'info.json')), 'r', encoding='utf-8') as f:
-            nwpu_query_class.student_assoc = json.loads(f.read())["student_assoc"]
-    water_rank_msg = await nwpu_query_class.get_water_rank()
-    logger.info(water_rank_msg)
-    await nwpu_query_class.close_client()
-
 @driver.on_bot_connect
 async def connect():
     """bot接入 启动定时任务"""
-    # await test()
+    await test()
     global if_connected
     if_connected = True
     logger.info("bot接入，启动定时任务")

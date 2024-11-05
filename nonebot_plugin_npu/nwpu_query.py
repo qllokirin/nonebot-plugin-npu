@@ -279,7 +279,7 @@ class NwpuQuery():
             logger.error(f"{folder_path}成绩获取超时，返回None，在定时任务中会跳过，在指令获取中会返回错误信息")
             return None, None
 
-    async def get_rank(self, folder_path):
+    async def get_rank(self, folder_path, if_all = False):
         URL = 'https://jwxt.nwpu.edu.cn/student/for-std/student-portrait'
         await self.client.get(URL, headers=self.headers, timeout=5)
         URL = 'https://jwxt.nwpu.edu.cn/student/for-std/student-portrait/getStdInfo?bizTypeAssoc=2&cultivateTypeAssoc=1'
@@ -307,6 +307,23 @@ class NwpuQuery():
                 rank_msg += f"\n与后一名差{gpa - after_rank_gpa:.3f}绩点"
             with open((os.path.join(folder_path, 'rank.txt')), 'w', encoding='utf-8') as f:
                 f.write(str(rank))
+            if not if_all:
+                return rank_msg, rank
+            semesters_all = {semester["id"]: semester["nameZh"]  for semester in response.json()['semesters']}
+            for semester in [semester["id"]  for semester in response.json()['semesters']]:
+                URL = f'https://jwxt.nwpu.edu.cn/student/for-std/student-portrait/getMyGrades?studentAssoc={self.student_assoc}&semesterAssoc={semester}'
+                response = await self.client.get(URL, headers=self.headers, timeout=5)
+                if response.json()['stdGpaRankDto'] is None:
+                    continue
+                gpa = response.json()['stdGpaRankDto']['gpa']
+                rank = response.json()['stdGpaRankDto']['rank']
+                before_rank_gpa = response.json()['stdGpaRankDto']['beforeRankGpa']
+                after_rank_gpa = response.json()['stdGpaRankDto']['afterRankGpa']
+                rank_msg += f"\n\n{semesters_all[semester]}\n你的绩点是{gpa}，在{major_name}中排名是{rank}/{total_poeple_num}({rank/total_poeple_num*100:.2f}%)"
+                if before_rank_gpa:
+                    rank_msg += f"\n和前一名差{before_rank_gpa - gpa:.3f}绩点"
+                if after_rank_gpa:
+                    rank_msg += f"\n与后一名差{gpa - after_rank_gpa:.3f}绩点"
             return rank_msg, rank
 
     # 查询考试信息
