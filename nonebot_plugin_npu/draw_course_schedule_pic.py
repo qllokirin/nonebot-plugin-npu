@@ -1,4 +1,3 @@
-
 import json
 import datetime
 from pathlib import Path
@@ -6,11 +5,12 @@ from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
 from nonebot.utils import run_sync
 
+
 @run_sync
 def check_if_course_schedule_only_one(folder_path):
-    '''
+    """
     检查是否只有一个课程表
-    '''
+    """
     folder_path = Path(folder_path)
     all_course_schedule_files = list(folder_path.glob("*秋.html")) + \
                                 list(folder_path.glob("*春.html")) + \
@@ -22,27 +22,29 @@ def check_if_course_schedule_only_one(folder_path):
             file.unlink()
         return False
 
+
 def get_time_table(folder_path):
-    '''
+    """
     获取课程表的时间
-    '''
+    """
     lessons_path = Path(folder_path) / "2024-2025秋.html"
     with open(lessons_path, "r", encoding="utf-8") as f:
         data = json.loads(f.read())
     result = []
     for course in data['studentTableVm']['timeTableLayout']['courseUnitList']:
-        startTime = str(course['startTime'])
-        endTime = str(course['endTime'])
-        startTime = startTime[:2] + ":" + startTime[2:] if len(startTime) == 4 else "0" + startTime[
-                                                                                          :1] + ":" + startTime[1:]
-        endTime = endTime[:2] + ":" + endTime[2:] if len(endTime) == 4 else "0" + endTime[:1] + ":" + endTime[1:]
-        result.append(startTime + "\n" + endTime)
+        start_time = str(course['startTime'])
+        end_time = str(course['endTime'])
+        start_time = start_time[:2] + ":" + start_time[2:] if len(start_time) == 4 else "0" + start_time[
+                                                                                          :1] + ":" + start_time[1:]
+        end_time = end_time[:2] + ":" + end_time[2:] if len(end_time) == 4 else "0" + end_time[:1] + ":" + end_time[1:]
+        result.append(start_time + "\n" + end_time)
     return result
 
+
 def get_all_lessons(folder_path):
-    '''
+    """
     解析原始课程表数据
-    '''
+    """
     lessons_path = Path(folder_path) / "2024-2025秋.html"
     with open(lessons_path, "r", encoding="utf-8") as f:
         data = json.loads(f.read())
@@ -58,6 +60,7 @@ def get_all_lessons(folder_path):
             "endUnit": course['endUnit'],
         })
     return result, data['studentTableVm']['arrangedLessonSearchVms'][0]['semester']['startDate']
+
 
 def draw_rounded_rectangle(draw, x, y, width, height, radius, fill, outline=None, outline_width=1):
     """
@@ -95,6 +98,7 @@ def draw_rounded_rectangle(draw, x, y, width, height, radius, fill, outline=None
         draw.line([left, top + radius, left, bottom - radius], fill=outline, width=outline_width)  # 左边
         draw.line([right, top + radius, right, bottom - radius], fill=outline, width=outline_width)  # 右边
 
+
 @run_sync
 def draw_course_schedule_pic(folder_path):
     canvas_width = 1240
@@ -130,7 +134,7 @@ def draw_course_schedule_pic(folder_path):
         text = time[i]
         bbox = draw.textbbox((0, 0), text, font=font)
         text_height = bbox[3] - bbox[1]
-        draw.text((left_margin, top_content_gap + (i) * line_spacing + (line_spacing - text_height) / 2), text,
+        draw.text((left_margin, top_content_gap + i * line_spacing + (line_spacing - text_height) / 2), text,
                   fill=text_color, font=font)
     # 画上午下午晚上分割线
     for i in [4, 6, 10]:
@@ -175,7 +179,7 @@ def draw_course_schedule_pic(folder_path):
             else:
                 color = "#baa7f6"
             draw_rounded_rectangle(draw, x, y, width, height, radius, fill=color, outline="white",
-                                        outline_width=4)
+                                   outline_width=4)
             x = x + text_margin_with_course_left_right
             y = y + text_margin_with_course_top
             width = width - text_margin_with_course_left_right * 2
@@ -206,6 +210,7 @@ def draw_course_schedule_pic(folder_path):
 
 if __name__ == "__main__":
     import asyncio
+
     data_folder = Path(__file__).parent / "data"
     first_subfolder = next((item for item in data_folder.iterdir() if item.is_dir()), None)
     asyncio.run(draw_course_schedule_pic(first_subfolder))

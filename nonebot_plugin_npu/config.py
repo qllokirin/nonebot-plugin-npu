@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+
 class Config(BaseModel):
     npu_check_time: int = 60
     npu_electric_check_time: int = 30

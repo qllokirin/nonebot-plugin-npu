@@ -14,6 +14,7 @@ gray_fill = PatternFill(start_color="D3D3D3", end_color="D3D3D3", fill_type="sol
 # 按模块名称匹配为蓝色填充
 blue_fill = PatternFill(start_color="66ccff", end_color="66ccff", fill_type="solid")
 
+
 # Function to generate HTML table from data
 def generate_html_table(data):
     html_table = """
@@ -65,6 +66,7 @@ def generate_html_table(data):
 
     return html_table
 
+
 @run_sync
 def generate_img_from_html(data, grades_folder_path):
     # Generate HTML table
@@ -98,16 +100,18 @@ def generate_grades_to_msg(gardes):
             grades_msg += "└──" + garde["grade_detail"][-1] + "\n\n"
     return grades_msg[:-2]
 
+
 def get_exams_msg(folder_path):
     with open((os.path.join(folder_path, 'exams.json')), 'r', encoding='utf-8') as f:
         exams = json.loads(f.read())
     exams_msg = ""
     for exam in exams:
-        exams_msg += "名称：" + exam["course"] +"\n"
-        exams_msg += "地点：" + exam["location"] +"\n"
-        exams_msg += "时间：" + exam["time"] +"\n\n"
+        exams_msg += "名称：" + exam["course"] + "\n"
+        exams_msg += "地点：" + exam["location"] + "\n"
+        exams_msg += "时间：" + exam["time"] + "\n\n"
     exams_msg = exams_msg[:-2]
     return exams_msg
+
 
 # 处理成绩数据
 def handle_training_program_data(data, results):
@@ -134,6 +138,7 @@ def handle_training_program_data(data, results):
             handle_training_program_data(children, class_info["children"])
         results.append(class_info)
 
+
 # 递归正确计算剩余未修学分
 '''
 a中有a a a a a学分的就只取最低剩余学分的组 同分时两个都显示
@@ -143,6 +148,8 @@ a中有a a a a a学分的就只取最低剩余学分的组 同分时两个都显
 语言类一般是 （8=8+8+8）（子>父 取剩余最小）
 微积分可能是 （11.5=5.5的课程+6学分的小分组）（单独计算
 '''
+
+
 def calculate_remaining_credits(data):
     if "children" in data:
         # 来点硬编码 受不了啦 这培养方案写的一点都不规范
@@ -159,14 +166,16 @@ def calculate_remaining_credits(data):
         # 当子节点的总学分大于父节点学分要求时，说明是分组的培养方案，取子节点中最小的 remainingCredits
         if sum(child_required_credits) > data["requiredCredits"]:
             data["remainingCredits"] = min(child_remaining_credits)
-            data["children"] = [child for child in data["children"] if child["remainingCredits"] == data["remainingCredits"]]
+            data["children"] = [child for child in data["children"] if
+                                child["remainingCredits"] == data["remainingCredits"]]
         elif sum(child_required_credits) == data["requiredCredits"]:
             data["remainingCredits"] = sum(child_remaining_credits)
         # 当子节点的总学分小于父节点学分要求时，说明是课程和分组并列的培养方案 或 有0值的分组
         else:
             # （11.5=5.5的课程+6学分的小分组）
             if (data.get("incompleteCourses") or data.get("completedCourses")) and data.get("children"):
-                data["remainingCredits"] = sum(child_remaining_credits) + sum(course["course_credits"] for course in data["incompleteCourses"])
+                data["remainingCredits"] = sum(child_remaining_credits) + sum(
+                    course["course_credits"] for course in data["incompleteCourses"])
             # （6=0+0+0+0+0+0）
             elif all(child["requiredCredits"] == 0 for child in data["children"]):
                 data["remainingCredits"] = data["requiredCredits"] - sum(child_completed_credits)
@@ -178,6 +187,7 @@ def calculate_remaining_credits(data):
                 print(data["type_nameZh"])
         if data["remainingCredits"] < 0:
             data["remainingCredits"] = 0
+
 
 # 处理匹配和未匹配的课程
 def handle_completed_and_incomplete_course(program, completed_courses_all, completed_courses_all_static):
@@ -200,7 +210,7 @@ def handle_completed_and_incomplete_course(program, completed_courses_all, compl
             else:
                 incomplete_courses.append(course)
                 course["completed"] = False
-        item["planCourses"] = [] 
+        item["planCourses"] = []
         item["completedCredits"] = completed_credits
         item["remainingCredits"] = required_credits - completed_credits
         item["incompleteCourses"] = incomplete_courses
@@ -209,11 +219,15 @@ def handle_completed_and_incomplete_course(program, completed_courses_all, compl
             item["remainingCredits"] = 0
         # 递归处理子分类
         if "children" in item:
-            handle_completed_and_incomplete_course(item["children"], completed_courses_all, completed_courses_all_static)
+            handle_completed_and_incomplete_course(item["children"], completed_courses_all,
+                                                   completed_courses_all_static)
         if "children" not in item and item["incompleteCourses"] == []:
-            item["incompleteCourses"].append({"course_nameZh": "培养方案无具体课程", "course_code": "无", "course_credits": "无", "course_type": "无"})
+            item["incompleteCourses"].append(
+                {"course_nameZh": "培养方案无具体课程", "course_code": "无", "course_credits": "无",
+                 "course_type": "无"})
         # 递归正确计算剩余未修学分
         calculate_remaining_credits(item)
+
 
 # 计算最大层级深度
 def max_dict_depth(data):
@@ -226,6 +240,7 @@ def max_dict_depth(data):
     else:
         # 如果是其他类型，深度为0
         return 0
+
 
 # 写入数据到Excel表格
 def write_to_excel(data, sheet, max_depth, row=1, col=1):
@@ -245,24 +260,26 @@ def write_to_excel(data, sheet, max_depth, row=1, col=1):
         # 如果有子节点，递归写入
         if "children" in item and item["children"]:
             # 递归处理子节点
-            row = write_to_excel(item["children"], sheet, max_depth, row, col+1)
+            row = write_to_excel(item["children"], sheet, max_depth, row, col + 1)
         # 写入课程信息
-        if "incompleteCourses" in item and (item["remainingCredits"] > 0 or any(keyword in item["type_nameZh"] for keyword in ["管理与领导力", "文明与经典", "创新创业", "伦理与可持续发展", "全球视野", "写作与沟通"])):
+        if "incompleteCourses" in item and (item["remainingCredits"] > 0 or any(
+                keyword in item["type_nameZh"] for keyword in
+                ["管理与领导力", "文明与经典", "创新创业", "伦理与可持续发展", "全球视野", "写作与沟通"])):
             for course in item["incompleteCourses"]:
                 sheet.cell(row=row, column=col + 1, value=course["course_nameZh"]).fill = red_fill
                 sheet.cell(row=row, column=col + 2, value=course["course_code"]).fill = red_fill
                 sheet.cell(row=row, column=col + 3, value=course["course_type"]).fill = red_fill
                 sheet.cell(row=row, column=col + 4, value=course["course_credits"]).fill = red_fill
-                for col_temp in range(col+5, max_depth + 4):
+                for col_temp in range(col + 5, max_depth + 4):
                     sheet.cell(row=row, column=col_temp, value='空')
                 row += 1
         if "completedCourses" in item:
             for course in item["completedCourses"]:
-                sheet.cell(row=row, column=col+1, value=course["course_nameZh"]).font = Font(color="0000FF")
-                sheet.cell(row=row, column=col+2, value=course["course_code"]).font = Font(color="0000FF")
-                sheet.cell(row=row, column=col+3, value=course["course_type"]).font = Font(color="0000FF")
-                sheet.cell(row=row, column=col+4, value=course["course_credits"]).font = Font(color="0000FF")
-                for col_temp in range(col+5, max_depth + 4):
+                sheet.cell(row=row, column=col + 1, value=course["course_nameZh"]).font = Font(color="0000FF")
+                sheet.cell(row=row, column=col + 2, value=course["course_code"]).font = Font(color="0000FF")
+                sheet.cell(row=row, column=col + 3, value=course["course_type"]).font = Font(color="0000FF")
+                sheet.cell(row=row, column=col + 4, value=course["course_credits"]).font = Font(color="0000FF")
+                for col_temp in range(col + 5, max_depth + 4):
                     sheet.cell(row=row, column=col_temp, value='空')
                 row += 1
         completed_courses = item.get("completedCourses")
@@ -271,6 +288,7 @@ def write_to_excel(data, sheet, max_depth, row=1, col=1):
         if (completed_courses == []) and (incomplete_courses == []) and (children is None):
             row += 1
     return row
+
 
 # 格式化表格
 def fromat_excel(sheet, completed_courses_all):
@@ -291,7 +309,8 @@ def fromat_excel(sheet, completed_courses_all):
                 row += 1
             # 如果发现需要合并的范围，进行合并
             if merge_start != row:
-                sheet.merge_cells(start_row=merge_start, start_column=current_cell.column, end_row=row, end_column=current_cell.column)
+                sheet.merge_cells(start_row=merge_start, start_column=current_cell.column, end_row=row,
+                                  end_column=current_cell.column)
             # 跳到下一个未合并的单元格
             row += 1
     for row in sheet.iter_rows():
@@ -312,16 +331,17 @@ def fromat_excel(sheet, completed_courses_all):
     for row in sheet.iter_rows():
         for cell in row:
             cell.border = Border(
-                            left=Side(border_style="thin", color="000000"),
-                            right=Side(border_style="thin", color="000000"),
-                            top=Side(border_style="thin", color="000000"),
-                            bottom=Side(border_style="thin", color="000000")
-                            )
+                left=Side(border_style="thin", color="000000"),
+                right=Side(border_style="thin", color="000000"),
+                top=Side(border_style="thin", color="000000"),
+                bottom=Side(border_style="thin", color="000000")
+            )
             cell.alignment = Alignment(vertical="center", wrap_text=True)
     # 设置所有列的宽度为20
     for col in sheet.columns:
         col_letter = col[0].column_letter
         sheet.column_dimensions[col_letter].width = 20
+
 
 def if_begin_lesson_day_is_tomorrow(data):
     '''
@@ -336,7 +356,8 @@ def if_begin_lesson_day_is_tomorrow(data):
             existing_week_min = min(existing["weekIndexes"])
             if (week_min < existing_week_min or
                     (week_min == existing_week_min and course["weekday"] < existing["weekday"]) or
-                    (week_min == existing_week_min and course["weekday"] == existing["weekday"] and datetime.strptime(course["startTime"], "%H:%M") < datetime.strptime(existing["startTime"], "%H:%M"))):
+                    (week_min == existing_week_min and course["weekday"] == existing["weekday"] and datetime.strptime(
+                        course["startTime"], "%H:%M") < datetime.strptime(existing["startTime"], "%H:%M"))):
                 result[name] = course
         else:
             result[name] = course

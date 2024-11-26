@@ -1,16 +1,18 @@
 from nonebot import logger, get_driver, require, on_command, on_type, get_bot, get_plugin_config
 from nonebot.plugin import PluginMetadata
-from nonebot.adapters.onebot.v11 import Bot, Event, Message, MessageSegment, MessageEvent ,GroupMessageEvent, PrivateMessageEvent, PokeNotifyEvent
+from nonebot.adapters.onebot.v11 import Bot, Event, Message, MessageSegment, MessageEvent, GroupMessageEvent, \
+    PrivateMessageEvent, PokeNotifyEvent
 from nonebot.matcher import Matcher
 from nonebot.params import ArgPlainText, CommandArg
 from nonebot.rule import to_me
 from nonebot.adapters import Message
 from nonebot.utils import run_sync
 from nonebot.exception import MatcherException, ActionFailed
+
 require("nonebot_plugin_apscheduler")
 require("nonebot_plugin_waiter")
 from nonebot_plugin_apscheduler import scheduler
-from nonebot_plugin_waiter import waiter,prompt
+from nonebot_plugin_waiter import waiter, prompt
 import os, shutil, json, asyncio, random, httpx, glob
 from datetime import datetime
 from typing import List, Union
@@ -18,10 +20,12 @@ from pathlib import Path
 from .config import Config
 from .nwpu_query import NwpuQuery
 from .utils import generate_img_from_html, generate_grades_to_msg, get_exams_msg, if_begin_lesson_day_is_tomorrow
-from .nwpu_electric import get_campaus, get_building, get_room, get_electric_left
+from .nwpu_electric import get_campus, get_building, get_room, get_electric_left
 from .draw_course_schedule_pic import check_if_course_schedule_only_one, draw_course_schedule_pic
+
+
 async def test():
-    '''测试用函数 就不用每次都发消息测试了'''
+    """测试用函数 就不用每次都发消息测试了"""
     pass
     # nwpu_query_class = NwpuQuery()
     # folder_path = os.path.join(os.path.dirname(__file__), 'data', '2456590695')
