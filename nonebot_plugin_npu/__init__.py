@@ -20,6 +20,7 @@ from .config import Config
 from .nwpu_query import NwpuQuery
 from .utils import generate_img_from_html, generate_grades_to_msg, get_exams_msg, if_begin_lesson_day_is_tomorrow
 from .nwpu_electric import get_campaus, get_building, get_room, get_electric_left
+from .draw_course_schedule_pic import check_if_course_schedule_only_one, draw_course_schedule_pic
 
 __plugin_meta__ = PluginMetadata(
     name="西工大翱翔门户成绩监控",
@@ -89,6 +90,16 @@ async def nwpu_handel_function(bot: Bot, event: Union[PrivateMessageEvent, Group
                         else:
                             await nwpu.send("暂无考试")
                     await nwpu.finish()
+                elif msg == "本周课表":
+                    if await check_if_course_schedule_only_one(folder_path):
+                        await nwpu.send("检测到已存在课表文件，生成图片中...\n"
+                                        "若实际有课但图片显示无课，请发送 翱翔课表 更新课表后查看")
+                    else:
+                        await nwpu.send("没有课表文件或有多个课表文件，正在重新获取最新课表，请稍等")
+                        await nwpu_handel_function(bot, event, Message(MessageSegment.text("课表")))
+                        await nwpu.send("获取完毕，生成图片中...\n后续可以直接输入 翱翔本周课表 查看")
+                    course_schedule_path = await draw_course_schedule_pic(folder_path)
+                    await nwpu.finish(MessageSegment.image(Path(course_schedule_path)))
                 else:
                     await nwpu.send("正在登入翱翔门户")
                     if await nwpu_query_class.use_recent_cookies_login(cookies_path):
@@ -183,7 +194,6 @@ async def nwpu_handel_function(bot: Bot, event: Union[PrivateMessageEvent, Group
                                                 "点击->用其他应用打开->选择wake up导入到课程表\n"
                                                 "覆盖当前课表->选择学校/教务类型->选择西工大->点击右下角导入按钮即可\n"
                                                 "第一次使用可能需要自己手动调整一下课表时间")
-                                await nwpu.finish()
                             else:
                                 nwpu.finish("暂无课表")
                         elif msg == "退出登录" or msg == "退出登陆":
@@ -654,9 +664,15 @@ async def _(bot: Bot, event: Event, args: Message = CommandArg()):
                 else:
                     await nwpu_electric.finish(f'暂未绑定宿舍\n请输入 翱翔电费绑定 进行绑定')
             else:
-                await nwpu_electric.finish("请输入 翱翔电费绑定 进行绑定 \n或者 翱翔电费查询 进行电费查询 翱翔电费解绑 接触绑定")
+                await nwpu_electric.finish("请输入 翱翔电费绑定 进行绑定\n"
+                                       "或者\n"
+                                       "翱翔电费查询 进行电费查询\n"
+                                       "翱翔电费解绑 解除绑定\n")
         else:
-            await nwpu_electric.finish("请输入 翱翔电费绑定 进行绑定 \n或者 翱翔电费查询 进行电费查询 翱翔电费解绑 接触绑定")
+            await nwpu_electric.finish("请输入 翱翔电费绑定 进行绑定\n"
+                                       "或者\n"
+                                       "翱翔电费查询 进行电费查询\n"
+                                       "翱翔电费解绑 解除绑定\n")
     except MatcherException:
         raise
     except Exception as e:
