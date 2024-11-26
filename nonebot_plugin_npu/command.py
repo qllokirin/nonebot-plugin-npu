@@ -383,6 +383,15 @@ async def nwpu_handel_function(bot: Bot, event: Union[PrivateMessageEvent, Group
         await nwpu.finish("出错了，请重试")
 
 
+nwpu_course_schedule = on_command("课表", rule=to_me(), aliases={"本周课表", "kb"}, priority=10, block=True)
+
+
+@nwpu_course_schedule.handle()
+async def _(bot: Bot, event: Event, args: Message = CommandArg()):
+    if not args.extract_plain_text().strip():
+        await nwpu_handel_function(bot, event, Message(MessageSegment.text("本周课表")))
+
+
 nwpu_electric = on_command("翱翔电费", rule=to_me(), priority=10, block=True)
 
 
