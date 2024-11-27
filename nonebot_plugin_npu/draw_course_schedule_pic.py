@@ -27,7 +27,9 @@ def get_time_table(folder_path):
     """
     获取课程表的时间
     """
-    lessons_path = Path(folder_path) / "2024-2025秋.html"
+    folder_path = Path(folder_path)
+    html_files = list(folder_path.glob("*.html"))
+    lessons_path = [f for f in html_files if f.name.endswith(("春.html", "夏.html", "秋.html"))][0]
     with open(lessons_path, "r", encoding="utf-8") as f:
         data = json.loads(f.read())
     result = []
@@ -45,7 +47,9 @@ def get_all_lessons(folder_path):
     """
     解析原始课程表数据
     """
-    lessons_path = Path(folder_path) / "2024-2025秋.html"
+    folder_path = Path(folder_path)
+    html_files = list(folder_path.glob("*.html"))
+    lessons_path = [f for f in html_files if f.name.endswith(("春.html", "夏.html", "秋.html"))][0]
     with open(lessons_path, "r", encoding="utf-8") as f:
         data = json.loads(f.read())
     result = []
@@ -101,6 +105,7 @@ def draw_rounded_rectangle(draw, x, y, width, height, radius, fill, outline=None
 
 @run_sync
 def draw_course_schedule_pic(folder_path):
+    folder_path = Path(folder_path)
     canvas_width = 1240
     canvas_height = 2770
     bg_color = "#d5ddef"
@@ -124,7 +129,7 @@ def draw_course_schedule_pic(folder_path):
     # img = background.resize((canvas_width, canvas_height))
     img = Image.new("RGB", (canvas_width, canvas_height), color=bg_color)
     draw = ImageDraw.Draw(img)
-    font_path = Path(folder_path).parent.parent / "SmileySans-Oblique.ttf"
+    font_path = folder_path.parent.parent / "SmileySans-Oblique.ttf"
     font = ImageFont.truetype(font_path, font_size)
     # 画左侧时间
     time = get_time_table(folder_path)

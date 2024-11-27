@@ -381,7 +381,7 @@ class NwpuQuery:
     # 获取课表信息
     async def get_course_table(self, folder_path):
         url = 'https://jwxt.nwpu.edu.cn/student/for-std/course-table'
-        response = await self.client.get(url, headers=self.headers, timeout=5)
+        response = await self.client.get(url, headers=self.headers, timeout=10)
         all_semesters = BeautifulSoup(response.text, 'html.parser').find('select', {'id': 'allSemesters'}).find_all(
             'option')
         course_table_path = ''
@@ -389,7 +389,7 @@ class NwpuQuery:
         # 遍历学期，找到有课的学期就保存
         for semester in all_semesters:
             url = f"https://jwxt.nwpu.edu.cn/student/for-std/course-table/semester/{semester['value']}/print-data/{self.student_assoc}?hasExperiment=true"
-            response = await self.client.get(url, headers=self.headers, timeout=5)
+            response = await self.client.get(url, headers=self.headers, timeout=10)
             if response.json()["studentTableVm"]["credits"] != 0:
                 course_table_path = os.path.join(folder_path, f'{semester.text}.html')
                 course_table_name = f"{semester.text}.html"
