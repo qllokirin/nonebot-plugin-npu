@@ -197,15 +197,17 @@ def draw_course_schedule_pic(folder_path):
             for letter in text:
                 bbox = draw.textbbox((0, 0), letter, font=font)
                 text_width = bbox[2] - bbox[0]
-                if y_now + text_height > y + height:
-                    break
                 if letter == '\n':
                     x_now = x
                     y_now += text_height + text_margin
                     continue
+                # 先判断是否需要换行
                 if x_now + text_width > x + width:
                     x_now = x
                     y_now += text_height + text_margin
+                # 再判断是否超出课程块
+                if y_now + text_height > y + height:
+                    break
                 draw.text((x_now, y_now), letter, fill="#F5F5F5", font=font)
                 x_now += text_width
     course_schedule_path = Path(folder_path) / "course_schedule_pic.png"
