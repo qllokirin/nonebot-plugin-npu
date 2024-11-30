@@ -191,9 +191,11 @@ async def nwpu_handel_function(bot: Bot, event: Union[PrivateMessageEvent, Group
                                 nwpu.finish("暂无课表")
                         elif msg == "退出登录" or msg == "退出登陆":
                             await nwpu.send("正在退出登录")
-                            shutil.rmtree(folder_path)
-                            await nwpu.send("退出成功")
-                            await nwpu.finish()
+                            for file_name in os.listdir(folder_path):
+                                file_path = os.path.join(folder_path, file_name)
+                                if os.path.isfile(file_path) and file_name != "electric.json":
+                                    os.remove(file_path)
+                            await nwpu.finish("退出成功")
                         elif msg == "加权百分制成绩":
                             await nwpu.send(
                                 f"加权百分制成绩的意思是计算原始百分制成绩的加权平均，不使用gpa（绩点）成绩，P/NP成绩不计入加权百分制成绩中")
@@ -237,7 +239,10 @@ async def nwpu_handel_function(bot: Bot, event: Union[PrivateMessageEvent, Group
                             await nwpu.finish("那是什么 我不知道\n"
                                               "发送 help 可获取全部指令")
                     else:
-                        shutil.rmtree(folder_path)
+                        for file_name in os.listdir(folder_path):
+                            file_path = os.path.join(folder_path, file_name)
+                            if os.path.isfile(file_path) and file_name != "electric.json":
+                                os.remove(file_path)
                         await nwpu.finish("登陆失败 cookie过期，请输入 翱翔 进行登陆")
             else:
                 await nwpu.finish("你还没有登陆过，请输入 翱翔 进行登陆")

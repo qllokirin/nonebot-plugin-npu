@@ -136,10 +136,14 @@ async def check_grades_and_ranks_and_exams(qq, bot):
                                                message=f"你的全部未结束考试有：\n" + exams_msg)
                     logger.info(f"{qq}的新考试已推送\n{new_course_msg}")
             else:
-                logger.error(f"{qq}的cookies失效了,删除该文件夹")
-                shutil.rmtree(folder_path)
-                await bot.send_private_msg(user_id=int(qq), message=f"你的登陆信息已失效，请输入 翱翔 重新登陆")
-                logger.info(f"{qq}登录信息过期已推送")
+                if os.path.isfile(cookies_path):
+                    logger.error(f"{qq}的cookies失效了,删除该文件夹")
+                    for file_name in os.listdir(folder_path):
+                        file_path = os.path.join(folder_path, file_name)
+                        if os.path.isfile(file_path) and file_name != "electric.json":
+                            os.remove(file_path)
+                    await bot.send_private_msg(user_id=int(qq), message=f"你的登陆信息已失效，请输入 翱翔 重新登陆")
+                    logger.info(f"{qq}登录信息过期已推送")
         else:
             logger.info("bot失联，终止更新")
         await nwpu_query_class_sched.close_client()
@@ -287,10 +291,14 @@ async def check_course_schedule(qq, bot):
                     else:
                         await nwpu_query_class_sched.get_course_table(folder_path)
             else:
-                logger.error(f"{qq}的cookies失效了,删除该文件夹")
-                shutil.rmtree(folder_path)
-                await bot.send_private_msg(user_id=int(qq), message=f"你的登陆信息已失效，请输入 翱翔 重新登陆")
-                logger.info(f"{qq}登录信息过期已推送")
+                if os.path.isfile(cookies_path):
+                    logger.error(f"{qq}的cookies失效了,删除该文件夹")
+                    for file_name in os.listdir(folder_path):
+                        file_path = os.path.join(folder_path, file_name)
+                        if os.path.isfile(file_path) and file_name != "electric.json":
+                            os.remove(file_path)
+                    await bot.send_private_msg(user_id=int(qq), message=f"你的登陆信息已失效，请输入 翱翔 重新登陆")
+                    logger.info(f"{qq}登录信息过期已推送")
         else:
             logger.info("bot失联，终止更新")
     except Exception as e:
