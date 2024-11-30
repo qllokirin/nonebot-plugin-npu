@@ -305,7 +305,7 @@ class NwpuQuery:
         url = f'https://jwxt.nwpu.edu.cn/student/for-std/student-portrait/getMyGrades?studentAssoc={self.student_assoc}&semesterAssoc='
         response = await self.client.get(url, headers=self.headers, timeout=5)
         if response.json()['stdGpaRankDto'] is None:
-            return "暂无排名，xdx先体验下大学生活喵", 0
+            return "暂无排名喵", 0
         else:
             gpa = response.json()['stdGpaRankDto']['gpa']
             rank = response.json()['stdGpaRankDto']['rank']

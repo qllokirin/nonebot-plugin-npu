@@ -296,10 +296,16 @@ async def nwpu_handel_function(bot: Bot, event: Union[PrivateMessageEvent, Group
                                     if not await nwpu_query_class.get_student_assoc(folder_path):
                                         logger.error(f"获取信息失败")
                                         raise Exception("获取信息失败")
+                                    await nwpu.send("----------------\n"
+                                                    "获取排名中...\n"
+                                                    "----------------")
                                     rank_msg, _ = await nwpu_query_class.get_rank(folder_path)
                                     await nwpu.send(rank_msg)
                                     await nwpu.send(
                                         "学校的排名逻辑是同绩点的可能会被并列为同一名也可能会按顺序排，所以没出成绩时排名也在上下浮动是正常的（因为可能有跟你同绩点也有可能是前面有人同绩点导致你往前一名）")
+                                    await nwpu.send("----------------\n"
+                                                    "获取成绩中...\n"
+                                                    "----------------")
                                     _, grades = await nwpu_query_class.get_grades(folder_path)
                                     if grades:
                                         pic_path = os.path.join(folder_path, 'grades.jpg')
@@ -309,6 +315,14 @@ async def nwpu_handel_function(bot: Bot, event: Union[PrivateMessageEvent, Group
                                         await nwpu.send("成绩获取失败，请稍后再试")
                                     else:
                                         await nwpu.send("无成绩喵")
+                                    await nwpu.send("----------------\n"
+                                                    "获取课表中...\n"
+                                                    "----------------")
+                                    await nwpu_query_class.get_course_table(folder_path)
+                                    await nwpu.send(MessageSegment.image(Path(await draw_course_schedule_pic(folder_path))))
+                                    await nwpu.send("-------------------\n"
+                                                    "获取考试信息中...\n"
+                                                    "-------------------")
                                     exams_msg, _ = await nwpu_query_class.get_exams(folder_path)
                                     exams_msg = ("你的考试有：\n" + exams_msg) if exams_msg else "暂无考试"
                                     await nwpu.finish(exams_msg)
@@ -334,10 +348,16 @@ async def nwpu_handel_function(bot: Bot, event: Union[PrivateMessageEvent, Group
                     if not await nwpu_query_class.get_student_assoc(folder_path):
                         logger.error(f"获取信息失败")
                         raise Exception("获取信息失败")
+                    await nwpu.send("----------------\n"
+                                    "获取排名中...\n"
+                                    "----------------")
                     rank_msg, _ = await nwpu_query_class.get_rank(folder_path)
                     await nwpu.send(rank_msg)
                     await nwpu.send(
                         "学校的排名逻辑是同绩点的可能会被并列为同一名也可能会按顺序排，所以没出成绩时排名也在上下浮动是正常的（因为可能有跟你同绩点也有可能是前面有人同绩点导致你往前一名）")
+                    await nwpu.send("----------------\n"
+                                    "获取成绩中...\n"
+                                    "----------------")
                     _, grades = await nwpu_query_class.get_grades(folder_path)
                     if grades:
                         pic_path = os.path.join(folder_path, 'grades.jpg')
@@ -347,6 +367,14 @@ async def nwpu_handel_function(bot: Bot, event: Union[PrivateMessageEvent, Group
                         await nwpu.send("成绩获取失败，请稍后再试")
                     else:
                         await nwpu.send("无成绩喵")
+                    await nwpu.send("----------------\n"
+                                    "获取课表中...\n"
+                                    "----------------")
+                    await nwpu_query_class.get_course_table(folder_path)
+                    await nwpu.send(MessageSegment.image(Path(await draw_course_schedule_pic(folder_path))))
+                    await nwpu.send("-------------------\n"
+                                    "获取考试信息中...\n"
+                                    "------------------")
                     exams_msg, _ = await nwpu_query_class.get_exams(folder_path)
                     exams_msg = ("你的考试有：\n" + exams_msg) if exams_msg else "暂无考试"
                     await nwpu.finish(exams_msg)
