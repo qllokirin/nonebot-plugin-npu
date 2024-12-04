@@ -86,7 +86,7 @@ class NwpuQuery:
                 self.client.cookies.set(name, value)
         else:
             return False
-        response = await self.client.get(url, headers=self.headers)
+        response = await self.client.get(url, headers=self.headers, timeout=10)
         if len(response.history) != 0:
             url = 'https://jwxt.nwpu.edu.cn/student/sso-login'
             await self.client.get(url, headers=self.headers)
@@ -282,7 +282,8 @@ class NwpuQuery:
                     grades.append(grades_one_subject)
                 if (sem_query := sem_query - 1) == 0: break
             # 获取全部成绩时才保存成绩
-            if sem_query_ == 0:
+            # 并且非空时才保存 因为偶尔会出现bug推送全部成绩 故推测是因为上一次获取的是全空
+            if sem_query_ == 0 and grades:
                 with open(os.path.join(folder_path, 'grades.json'), 'w', encoding='utf-8') as f:
                     json.dump(grades, f, indent=4, ensure_ascii=False, )
             return grades_msg, grades
