@@ -46,10 +46,10 @@ async def connect():
     scheduler.resume_job('check_course_schedule')
     scheduler.resume_job('check_new_lesson_begin_tomorrow')
     if global_config.npu_if_check_when_connect:
-        await scheduler.get_job('check_power').func()
-        await scheduler.get_job('check_new_info').func()
+        # await scheduler.get_job('check_power').func()
+        # await scheduler.get_job('check_new_info').func()
         await scheduler.get_job('check_course_schedule').func()
-        await scheduler.get_job('check_new_lesson_begin_tomorrow').func()
+        # await scheduler.get_job('check_new_lesson_begin_tomorrow').func()
 
 
 async def check_grades_and_ranks_and_exams(qq, bot):
@@ -175,7 +175,7 @@ async def check_grades_and_ranks_and_exams_scheduled():
             if os.path.exists(data_folder_path):
                 qq_all = [f for f in os.listdir(data_folder_path) if os.path.isdir(os.path.join(data_folder_path, f))]
                 if qq_all:
-                    logger.info(f"已登录的全部QQ号：{qq_all}")
+                    logger.info(f"已登录的全部QQ号：{qq_all} 开始检查是否有成绩/排名/考试变动")
                 else:
                     logger.info("没有账号登陆")
             else:
@@ -228,7 +228,7 @@ async def check_new_lesson_begin_tomorrow_scheduled():
         if os.path.exists(data_folder_path):
             qq_all = [f for f in os.listdir(data_folder_path) if os.path.isdir(os.path.join(data_folder_path, f))]
             if qq_all:
-                logger.info(f"已登录的全部QQ号：{qq_all}")
+                logger.info(f"已登录的全部QQ号：{qq_all} 开始检查明天是否有新开课程")
             else:
                 logger.info("没有账号登陆")
         else:
@@ -264,7 +264,6 @@ async def check_course_schedule(qq, bot):
                 if global_config.npu_if_check_course_schedule:
                     if await check_if_course_schedule_only_one(folder_path):
                         lessons_data_old, _ = get_all_lessons(folder_path)
-                        lessons_data_old_dic = {lesson['courseName']: lesson for lesson in lessons_data_old}
                         lessons_path = [f for f in list((Path(__file__).parent / 'data' / qq).glob("*.html")) if
                                         f.name.endswith(("春.html", "夏.html", "秋.html"))][0]
                         await nwpu_query_class_sched.get_course_table(folder_path)
@@ -273,21 +272,23 @@ async def check_course_schedule(qq, bot):
                                 f.name.endswith(("春.html", "夏.html", "秋.html"))]) != 1:
                             lessons_path.unlink()
                         lessons_data, _ = get_all_lessons(folder_path)
-                        lessons_data_change = [lesson for lesson in lessons_data if
-                                               lesson not in lessons_data_old] if lessons_data else []
-                        lessons_data_change_previous = [
-                            lessons_data_old_dic.get(lesson["courseName"],
-                                                     f"{lesson['courseName']}之前无数据，大概率是新增课程") for
-                            lesson in lessons_data_change]
-                        if lessons_data_change:
-                            logger.info(f"{qq}出课表有变化啦")
-                            msg = "课表发生变动，详情如下\n" + "\n".join(
-                                map(str, lessons_data_change_previous)) + "\n" + "↓变化为↓\n" + "\n".join(
-                                map(str, lessons_data_change))
+                        lessons_data_new = [course for course in lessons_data if course not in lessons_data_old] if lessons_data else []
+                        if lessons_data_new:
+                            logger.info(f"{qq}课表有变化啦")
+                            msg = "有课表变动/新课程，变动后课程信息/新课程信息如下，需自行对比查看\n（也可能是机器人误报）\n\n"
+                            for course in lessons_data_new:
+                                msg += f"名称：{course['courseName']}\n" \
+                                        f"周次：{course['weekIndexes']}\n" \
+                                        f"地点：{course['room']}\n" \
+                                        f"星期：{course['weekday']}\n" \
+                                        f"教师：{course['teachers']}\n" \
+                                        f"开始节数：{course['startUnit']}\n" \
+                                        f"结束节数：{course['endUnit']}\n\n"
                             logger.info(msg)
-                            await bot.send_private_msg(user_id=int(qq),
-                                                       message=msg)
-                            logger.info(f"{qq}的课表变动已推送")
+                            if global_config.npu_if_check_course_schedule_send:
+                                await bot.send_private_msg(user_id=int(qq),
+                                                           message=msg[:-2])
+                                logger.info(f"{qq}的课表变动已推送")
                     else:
                         await nwpu_query_class_sched.get_course_table(folder_path)
             else:
