@@ -1,5 +1,5 @@
-from nonebot import logger, get_driver, require, get_bot, get_plugin_config
-from nonebot.adapters.onebot.v11 import Bot, MessageSegment
+from nonebot import logger, get_driver, require, get_bot, get_plugin_config, on_notice
+from nonebot.adapters.onebot.v11 import Bot, MessageSegment, Event
 from nonebot.exception import MatcherException
 
 require("nonebot_plugin_apscheduler")
@@ -21,6 +21,13 @@ global_config = get_plugin_config(Config)
 # bot是否在线 最开始启动时是离线的 与ws握手成功后变为True,断连后变为False
 if_connected = False
 
+
+offline = on_notice(priority=1, block=False)
+@offline.handle()
+async def _(event: Event):
+    global if_connected
+    if event.get_event_name() == "notice.bot_offline":
+        if_connected = False
 
 @driver.on_bot_disconnect
 async def disconnect():
@@ -302,6 +309,7 @@ async def check_course_schedule(qq, bot):
                     logger.info(f"{qq}登录信息过期已推送")
         else:
             logger.info("bot失联，终止更新")
+        await nwpu_query_class_sched.close_client()
     except Exception as e:
         logger.error(f"定时任务出现新错误{e!r}")
         await nwpu_query_class_sched.close_client()
