@@ -31,6 +31,7 @@ import httpx
 import rsa
 import base64
 from bs4 import BeautifulSoup
+from pathlib import Path
 import openpyxl
 import copy
 from .utils import handle_training_program_data, handle_completed_and_incomplete_course, max_dict_depth, write_to_excel, \
@@ -383,21 +384,15 @@ class NwpuQuery:
     async def get_course_table(self, folder_path):
         url = 'https://jwxt.nwpu.edu.cn/student/for-std/course-table'
         response = await self.client.get(url, headers=self.headers, timeout=10)
-        all_semesters = BeautifulSoup(response.text, 'html.parser').find('select', {'id': 'allSemesters'}).find_all(
-            'option')
-        course_table_path = ''
-        course_table_name = ''
-        # 遍历学期，找到有课的学期就保存
-        for semester in all_semesters:
-            url = f"https://jwxt.nwpu.edu.cn/student/for-std/course-table/semester/{semester['value']}/print-data/{self.student_assoc}?hasExperiment=true"
-            response = await self.client.get(url, headers=self.headers, timeout=10)
-            if response.json()["studentTableVm"]["credits"] != 0:
-                course_table_path = os.path.join(folder_path, f'{semester.text}.html')
-                course_table_name = f"{semester.text}.html"
-                with open(course_table_path, 'w', encoding='utf-8') as f:
-                    f.write(response.text)
-                break
-        return course_table_path, course_table_name
+        semester = BeautifulSoup(response.text, 'html.parser').find('select', {'id': 'allSemesters'}).find('option', selected=True)
+        url = f"https://jwxt.nwpu.edu.cn/student/for-std/course-table/semester/{semester['value']}/print-data/{self.student_assoc}?hasExperiment=true"
+        response = await self.client.get(url, headers=self.headers, timeout=10)
+        course_table_path = os.path.join(folder_path, f'{semester.text}.html')
+        for file_path in [f for f in list(Path(folder_path).glob("*.html")) if f.name.endswith(("春.html", "夏.html", "秋.html"))]:
+            file_path.unlink()
+        with open(course_table_path, 'w', encoding='utf-8') as f:
+            f.write(response.text)
+        return course_table_path, f"{semester.text}.html"
 
     # 获取综测排名
     async def get_water_rank(self):

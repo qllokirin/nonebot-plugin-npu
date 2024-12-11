@@ -271,13 +271,7 @@ async def check_course_schedule(qq, bot):
                 if global_config.npu_if_check_course_schedule:
                     if await check_if_course_schedule_only_one(folder_path):
                         lessons_data_old, _ = get_all_lessons(folder_path)
-                        lessons_path = [f for f in list((Path(__file__).parent / 'data' / qq).glob("*.html")) if
-                                        f.name.endswith(("春.html", "夏.html", "秋.html"))][0]
                         await nwpu_query_class_sched.get_course_table(folder_path)
-                        # 若新课程文件名称和原课程文件不一样则删除旧课程文件
-                        if len([f for f in list((Path(__file__).parent / 'data' / qq).glob("*.html")) if
-                                f.name.endswith(("春.html", "夏.html", "秋.html"))]) != 1:
-                            lessons_path.unlink()
                         lessons_data, _ = get_all_lessons(folder_path)
                         lessons_data_new = [course for course in lessons_data if course not in lessons_data_old] if lessons_data else []
                         if lessons_data_new:
