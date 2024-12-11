@@ -295,6 +295,30 @@ async def check_course_schedule(qq, bot):
                             if global_config.npu_if_check_course_schedule_send:
                                 await bot.send_private_msg(user_id=int(qq),
                                                            message=msg[:-2])
+                                lessons_data_old_dict = {course['courseName']: course for course in lessons_data_old}
+                                lessons_data_old_not_new = [lessons_data_old_dict.get(course['courseName']) for course in lessons_data_new if lessons_data_old_dict.get(course['courseName'])]
+                                msg = ""
+                                for course in lessons_data_old_not_new:
+                                    msg += f"名称：{course['courseName']}\n" \
+                                            f"周次：{course['weekIndexes']}\n" \
+                                            f"地点：{course['room']}\n" \
+                                            f"星期：{course['weekday']}\n" \
+                                            f"教师：{course['teachers']}\n" \
+                                            f"开始节数：{course['startUnit']}\n" \
+                                            f"结束节数：{course['endUnit']}\n\n"
+                                if msg:
+                                    await bot.send_private_forward_msg(user_id=int(qq), messages=[
+                                        {
+                                                "type": "node",
+                                                "data": {"name": "呱唧", "uin": bot.self_id, "content": "下面是同课程名的旧课程信息\n无同课程名的旧课程信息的，大概率是新课程"},
+                                            },
+                                            {
+                                                "type": "node",
+                                                "data": {"name": "呱唧", "uin": bot.self_id, "content": msg[:-2]},
+                                            }
+                                    ])
+                                else:
+                                    await bot.send_private_msg(user_id=int(qq), message="无同课程名的旧课程信息，大概率是新课程")
                                 logger.info(f"{qq}的课表变动已推送")
                     else:
                         await nwpu_query_class_sched.get_course_table(folder_path)
