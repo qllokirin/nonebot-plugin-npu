@@ -8,7 +8,7 @@ from nonebot.exception import MatcherException, ActionFailed
 
 require("nonebot_plugin_waiter")
 from nonebot_plugin_waiter import waiter, prompt
-import os, shutil, json
+import os, shutil, json, httpx
 from typing import List, Union
 from pathlib import Path
 from .config import Config
@@ -392,6 +392,9 @@ async def nwpu_handel_function(bot: Bot, event: Union[PrivateMessageEvent, Group
     except MatcherException:
         await nwpu_query_class.close_client()
         raise
+    except (httpx.TimeoutException, httpx.ReadTimeout, httpx.ConnectTimeout):
+        await nwpu_query_class.close_client()
+        await nwpu.send("请求超时，请稍等后重试")
     except ActionFailed:
         await nwpu_query_class.close_client()
         logger.error(f"文件发送失败")
