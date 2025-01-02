@@ -14,7 +14,7 @@ async def get_campus():
         msg = ""
         for i, campus in enumerate(campus_all):
             msg += str(i) + '  ' + campus['name'] + '\n'
-        msg += '选择校区,如0或1'
+        msg += '选择校区，如0或1'
         return msg, campus_all
 
 
@@ -36,7 +36,7 @@ async def get_building(campus):
                 count = 0
                 msg_list.append(msg)
                 msg = ""
-        msg += '选择楼栋,如0或1'
+        msg += '选择楼栋，如0或1'
         msg_list.append(msg)
         return msg_list, building_all
 
@@ -59,7 +59,7 @@ async def get_room(campus, building):
                 count = 0
                 msg_list.append(msg)
                 msg = ""
-        msg += '选择房间,如0或1'
+        msg += '选择房间，如0或1'
         msg_list.append(msg)
         return msg_list, room_all
 
@@ -68,4 +68,5 @@ async def get_electric_left(campus, building, room):
     data = {'feeitemid': '182', 'type': 'IEC', 'level': '3', 'campus': campus, 'building': building, 'room': room}
     async with httpx.AsyncClient() as client:
         response = await client.post(url=url, data=data)
-        return float(response.json()['map']['showData']['当前剩余电量'])
+        result = response.json()['map']
+        return float(result['showData']['当前剩余电量']), f"{result['data']['campus']} {result['data']['building']} {result['data']['room']}"

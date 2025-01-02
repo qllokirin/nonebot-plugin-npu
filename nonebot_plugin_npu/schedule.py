@@ -376,13 +376,13 @@ async def check_electric(qq, bot):
         electric_path = os.path.join(os.path.dirname(__file__), 'data', qq, 'electric.json')
         with open(electric_path, 'r', encoding='utf-8') as f:
             electric_information = json.loads(f.read())
-        electric_left = await get_electric_left(electric_information['campus'], electric_information['building'],
+        electric_left, information_all = await get_electric_left(electric_information['campus'], electric_information['building'],
                                                 electric_information['room'])
         logger.info(f'{qq}电费还剩{electric_left}')
         if electric_left < 25:
             logger.info(f'{qq}电费小于25，推送消息')
             await bot.send_private_msg(user_id=int(qq),
-                                       message=f"电费不足25，当前电费{electric_left}，请及时缴纳\n若不想收到提醒消息，可发送 翱翔电费解绑 进行解除绑定")
+                                       message=f"{information_all}，电费不足25，当前电费{electric_left}，请及时缴纳\n若不想收到提醒消息，可发送 翱翔电费解绑 进行解除绑定")
     except Exception as e:
         logger.error(f"出错了{e!r}")
         if global_config.superusers:

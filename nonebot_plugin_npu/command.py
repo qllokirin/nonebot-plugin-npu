@@ -441,45 +441,53 @@ async def _(bot: Bot, event: Event, args: Message = CommandArg()):
                 if os.path.exists(electric_path):
                     with open(electric_path, 'r', encoding='utf-8') as f:
                         electric_information = json.loads(f.read())
-                    electric_left = await get_electric_left(electric_information['campus'],
+                    electric_left, information_all = await get_electric_left(electric_information['campus'],
                                                             electric_information['building'],
                                                             electric_information['room'])
-                    await nwpu_electric.finish(f'电费剩余{electric_left}')
+                    await nwpu_electric.finish(f'{information_all}，当前剩余电量：{electric_left}')
                 else:
                     await nwpu_electric.finish(f'暂未绑定宿舍\n请输入 翱翔电费绑定 进行绑定')
             elif msg == "绑定":
-                logger.info("绑定新的宿舍")
-                information_all = ""
-                msg, campus_all = await get_campus()
-                if (campus_msg := await prompt(msg)) is None:
-                    await nwpu_electric.finish("已超时，本次绑定结束")
-                information_all += campus_all[int(campus_msg.extract_plain_text().strip())]['name'] + " "
-                folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
-                campus = campus_all[int(campus_msg.extract_plain_text().strip())]['value']
-                msg_list, building_all = await get_building(campus)
-                msg_all = []
-                for msg in msg_list:
-                    msg_all.append(MessageSegment.text(msg))
-                await send_forward_msg(bot, event, "building_all", str(event.self_id), msg_all)
-                if (building_msg := await prompt("")) is None:
-                    await nwpu.finish("已超时，本次绑定结束")
-                information_all += building_all[int(building_msg.extract_plain_text().strip())]['name'] + " "
-                building = building_all[int(building_msg.extract_plain_text().strip())]['value']
-                msg_list, room_all = await get_room(campus, building)
-                msg_all = []
-                for msg in msg_list:
-                    msg_all.append(MessageSegment.text(msg))
-                await send_forward_msg(bot, event, "room_all", str(event.self_id), msg_all)
-                if (room_msg := await prompt("")) is None:
-                    await nwpu.finish("已超时，本次绑定结束")
-                information_all += room_all[int(room_msg.extract_plain_text().strip())]['name']
-                room = room_all[int(room_msg.extract_plain_text().strip())]['value']
-                data = {'campus': campus, 'building': building, 'room': room}
-                electric_left = await get_electric_left(campus, building, room)
-                with open(os.path.join(folder_path, 'electric.json'), 'w', encoding='utf-8') as f:
-                    json.dump(data, f, indent=4, ensure_ascii=False)
-                await nwpu_electric.send(f'{information_all}，当前剩余电量：{electric_left}')
-                await nwpu_electric.finish("每天12点会自动定时查询，电费小于25时会自动提示充值")
+                try:
+                    logger.info("绑定新的宿舍")
+                    msg, campus_all = await get_campus()
+                    if (campus_msg := await prompt(msg)) is None:
+                        await nwpu_electric.finish("已超时，本次绑定结束")
+                    folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
+                    campus = campus_all[int(campus_msg.extract_plain_text().strip())]['value']
+                    msg_list, building_all = await get_building(campus)
+                    msg_all = []
+                    for msg in msg_list:
+                        msg_all.append(MessageSegment.text(msg))
+                    await nwpu_electric.send("请选择楼栋，如0或1，输入停止可终止本次绑定")
+                    await send_forward_msg(bot, event, "building_all", str(event.self_id), msg_all)
+                    if (building_msg := await prompt("")) is None:
+                        await nwpu_electric.finish("已超时，本次绑定结束")
+                    if building_msg.extract_plain_text().strip() == "停止":
+                        await nwpu_electric.finish("已停止，本次绑定结束")
+                    building = building_all[int(building_msg.extract_plain_text().strip())]['value']
+                    msg_list, room_all = await get_room(campus, building)
+                    msg_all = []
+                    for msg in msg_list:
+                        msg_all.append(MessageSegment.text(msg))
+                    await nwpu_electric.send("请选择房间，如0或1，输入停止可终止本次绑定")
+                    await send_forward_msg(bot, event, "room_all", str(event.self_id), msg_all)
+                    if (room_msg := await prompt("")) is None:
+                        await nwpu_electric.finish("已超时，本次绑定结束")
+                    if room_msg.extract_plain_text().strip() == "停止":
+                        await nwpu_electric.finish("已停止，本次绑定结束")
+                    room = room_all[int(room_msg.extract_plain_text().strip())]['value']
+                    data = {'campus': campus, 'building': building, 'room': room}
+                    electric_left, information_all = await get_electric_left(campus, building, room)
+                    with open(os.path.join(folder_path, 'electric.json'), 'w', encoding='utf-8') as f:
+                        json.dump(data, f, indent=4, ensure_ascii=False)
+                    await nwpu_electric.send(f'{information_all}，当前剩余电量：{electric_left}')
+                    await nwpu_electric.finish("每天12点会自动定时查询，电费小于25时会自动提示充值")
+                except (ValueError, IndexError) as e:
+                    await nwpu_electric.finish("值错误或数组越界，本次绑定已结束，请输入 翱翔电费绑定 重新开始")
+                    raise MatcherException
+                except Exception as e:
+                    raise e
             elif msg == "解绑":
                 folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
                 electric_path = os.path.join(folder_path, 'electric.json')
