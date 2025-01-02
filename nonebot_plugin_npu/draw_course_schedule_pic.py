@@ -63,7 +63,8 @@ def get_all_lessons(folder_path):
             "startUnit": course['startUnit'],
             "endUnit": course['endUnit'],
         })
-    return result, data['studentTableVm']['arrangedLessonSearchVms'][0]['semester']['startDate']
+    # 当一节课都没有的时候，获取不到学期开始时间，所以随便返回一个日期
+    return result, data['studentTableVm']['arrangedLessonSearchVms'][0]['semester']['startDate'] if len(data['studentTableVm']['arrangedLessonSearchVms']) != 0 else '2025-1-1'
 
 
 def draw_rounded_rectangle(draw, x, y, width, height, radius, fill, outline=None, outline_width=1):
