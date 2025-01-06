@@ -103,13 +103,13 @@ class NwpuQuery:
 
         # RSA加密password
         url_key = 'https://uis.nwpu.edu.cn/cas/jwt/publicKey'
-        response = await self.client.get(url_key, headers=self.headers2)
+        response = await self.client.get(url_key, headers=self.headers2, timeout=5)
         public_key = rsa.PublicKey.load_pkcs1_openssl_pem(response.text.encode())
         password = rsa.encrypt(password.encode(), public_key)
         password = "__RSA__" + base64.b64encode(password).decode()
         self.password = password
 
-        response = await self.client.get(url, headers=self.headers)
+        response = await self.client.get(url, headers=self.headers, timeout=10)
         response.encoding = 'utf-8'
         str1 = re.search('var hmSiteId = "(.*?)"', response.text)
         new_cookies = {
@@ -120,24 +120,25 @@ class NwpuQuery:
             self.client.cookies.set(name, value)
 
         self.execution = re.search('name="execution" value="(.*?)"', response.text)
+        self.fpVisitorId = re.search('name="fpVisitorId" value="(.*?)"', response.text)
 
         url = 'https://uis.nwpu.edu.cn/cas/mfa/detect'
         data = {
             'username': self.username,
             'password': self.password,
         }
-        response = await self.client.post(url, data=data, headers=self.headers2)
+        response = await self.client.post(url, data=data, headers=self.headers2, timeout=15)
         self.state_code = json.loads(response.text)['data']['state']
 
         url = f'https://uis.nwpu.edu.cn/cas/mfa/initByType/{device}?state={self.state_code}'
-        response = await self.client.get(url, headers=self.headers2)
+        response = await self.client.get(url, headers=self.headers2, timeout=15)
         if json.loads(response.text)['code'] != 0:
             return json.loads(response.text)['code']
         else:
             gid = json.loads(response.text)['data']['gid']
             url = f'https://uis.nwpu.edu.cn/attest/api/guard/{device}/send'
             self.data = {'gid': gid}
-            await self.client.post(url, data=json.dumps(self.data), headers=self.headers3)
+            await self.client.post(url, data=json.dumps(self.data), headers=self.headers3, timeout=15)
             return 0
 
     async def login_with_qr(self, folder_path):
@@ -209,6 +210,7 @@ class NwpuQuery:
                 'execution': self.execution.group(1),
                 '_eventId': 'submit',
                 'geolocation': '',
+                'fpVisitorId': self.fpVisitorId,
                 'submit': '稍等片刻……',
             }
             await self.client.post(url, data=self.data, headers=self.headers)

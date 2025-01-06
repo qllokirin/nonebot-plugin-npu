@@ -257,6 +257,7 @@ async def nwpu_handel_function(bot: Bot, event: Union[PrivateMessageEvent, Group
                 else:
                     return False
 
+            await nwpu.send("请勿相信未经信任的机器人喵~")
             await nwpu.send(
                 "请选择登陆方式\n1->账号密码手机验证码登录\n2->账号密码邮箱验证码登录\n3->扫码登录\n登录成功后会自动检测是否有新成绩，但若选择扫码登录，一天后登陆凭证会失效，无法长期监测新成绩\n\n会收集必要的信息用于持久登陆和成绩检测，继续登陆代表你已同意")
             login_in_way = await check_login_in_way.wait()
@@ -384,7 +385,7 @@ async def nwpu_handel_function(bot: Bot, event: Union[PrivateMessageEvent, Group
                     exams_msg = ("你的考试有：\n" + exams_msg) if exams_msg else "暂无考试"
                     await nwpu.finish(exams_msg)
                 else:
-                    await nwpu.finish(f'扫码出错，时间超时过期or其他原因，此次登陆已终止')
+                    await nwpu.finish(f'扫码出错，时间超时过期or其他原因，此次登陆已终止，请稍等后重试')
             elif login_in_way is None:
                 await nwpu.finish("已超时，本次登陆结束")
             else:
@@ -394,7 +395,7 @@ async def nwpu_handel_function(bot: Bot, event: Union[PrivateMessageEvent, Group
         raise
     except (httpx.TimeoutException, httpx.ReadTimeout, httpx.ConnectTimeout):
         await nwpu_query_class.close_client()
-        await nwpu.send("请求超时，请稍等后重试")
+        await nwpu.send("请求超时，本次指令已结束，请稍等后重试")
     except ActionFailed:
         await nwpu_query_class.close_client()
         logger.error(f"文件发送失败")
