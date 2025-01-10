@@ -8,7 +8,7 @@ from nonebot.exception import MatcherException, ActionFailed
 
 require("nonebot_plugin_waiter")
 from nonebot_plugin_waiter import waiter, prompt
-import os, shutil, json, httpx
+import os, json, httpx, traceback
 from typing import List, Union
 from pathlib import Path
 from .config import Config
@@ -88,6 +88,21 @@ async def nwpu_handel_function(bot: Bot, event: Union[PrivateMessageEvent, Group
                         await nwpu.send("获取完毕，生成图片中...\n后续可以直接输入 翱翔本周课表 查看")
                     course_schedule_path = await draw_course_schedule_pic(folder_path)
                     await nwpu.finish(MessageSegment.image(Path(course_schedule_path)))
+                elif msg[:4] == "成绩查询":
+                    course_name = msg[4:].strip()
+                    if not course_name:
+                        course_name = (await prompt("请输入要查询的课程名")).extract_plain_text().strip()
+                    if os.path.isfile(os.path.join(folder_path, 'grades.json')):
+                        with open((os.path.join(folder_path, 'grades.json')), 'r', encoding='utf-8') as f:
+                            grades = json.loads(f.read())
+                        count = 0
+                        for grade in grades:
+                            if course_name in grade['name']:
+                                count += 1
+                                await nwpu.send(f"{generate_grades_to_msg([grade])}")
+                        await nwpu.finish(f"共查询到{count}门课，查询完毕")
+                    else:
+                        await nwpu.finish("暂无成绩，请先使用翱翔全部成绩获取成绩")
                 else:
                     await nwpu.send("正在登入翱翔门户")
                     if await nwpu_query_class.use_recent_cookies_login(cookies_path):
@@ -325,7 +340,8 @@ async def nwpu_handel_function(bot: Bot, event: Union[PrivateMessageEvent, Group
                                                     "获取课表中...\n"
                                                     "----------------")
                                     await nwpu_query_class.get_course_table(folder_path)
-                                    await nwpu.send(MessageSegment.image(Path(await draw_course_schedule_pic(folder_path))))
+                                    await nwpu.send(
+                                        MessageSegment.image(Path(await draw_course_schedule_pic(folder_path))))
                                     await nwpu.send("-------------------\n"
                                                     "获取考试信息中...\n"
                                                     "-------------------")
@@ -409,14 +425,19 @@ async def nwpu_handel_function(bot: Bot, event: Union[PrivateMessageEvent, Group
         await nwpu.finish("文件发送失败，刚加没多久的新好友大概率出现此问题，请等待几天后重试")
     except Exception as e:
         await nwpu_query_class.close_client()
-        logger.error(f"出错了{e!r}")
+        error_trace = traceback.format_exc()
+        logger.error(f"出错了{e!r}\n堆栈信息:\n{error_trace}")
         if global_config.superusers:
             logger.info(f"发送错误日志给SUPERUSERS")
             for superuser in global_config.superusers:
-                await bot.send_private_msg(user_id=int(superuser),
-                                           message=MessageSegment.text(
-                                               f"{event.get_user_id()}使用翱翔{args.extract_plain_text().strip()}时发生错误\n{e!r}") + MessageSegment.image(
-                                               f"https://q.qlogo.cn/headimg_dl?dst_uin={event.get_user_id()}&spec=640"))
+                await bot.send_private_msg(
+                    user_id=int(superuser),
+                    message=MessageSegment.text(
+                        f"{event.get_user_id()}使用翱翔{args.extract_plain_text().strip()}时发生错误\n{e!r}\n堆栈信息:\n{error_trace}"
+                    ) + MessageSegment.image(
+                        f"https://q.qlogo.cn/headimg_dl?dst_uin={event.get_user_id()}&spec=640"
+                    )
+                )
         await nwpu.finish("出错了，请重试")
 
 
@@ -446,8 +467,8 @@ async def _(bot: Bot, event: Event, args: Message = CommandArg()):
                     with open(electric_path, 'r', encoding='utf-8') as f:
                         electric_information = json.loads(f.read())
                     electric_left, information_all = await get_electric_left(electric_information['campus'],
-                                                            electric_information['building'],
-                                                            electric_information['room'])
+                                                                             electric_information['building'],
+                                                                             electric_information['room'])
                     await nwpu_electric.finish(f'{information_all}，当前剩余电量：{electric_left}')
                 else:
                     await nwpu_electric.finish(f'暂未绑定宿舍\n请输入 翱翔电费绑定 进行绑定')
@@ -487,9 +508,8 @@ async def _(bot: Bot, event: Event, args: Message = CommandArg()):
                         json.dump(data, f, indent=4, ensure_ascii=False)
                     await nwpu_electric.send(f'{information_all}，当前剩余电量：{electric_left}')
                     await nwpu_electric.finish("每天12点会自动定时查询，电费小于25时会自动提示充值")
-                except (ValueError, IndexError) as e:
+                except (ValueError, IndexError):
                     await nwpu_electric.finish("值错误或数组越界，本次绑定已结束，请输入 翱翔电费绑定 重新开始")
-                    raise MatcherException
                 except Exception as e:
                     raise e
             elif msg == "解绑":
@@ -513,13 +533,15 @@ async def _(bot: Bot, event: Event, args: Message = CommandArg()):
     except MatcherException:
         raise
     except Exception as e:
-        logger.error(f"出错了{e!r}")
+        error_trace = traceback.format_exc()
+        logger.error(f"出错了{e!r}\n堆栈信息:\n{error_trace}")
         if global_config.superusers:
             logger.info(f"发送错误日志给SUPERUSERS")
             for superuser in global_config.superusers:
                 await bot.send_private_msg(user_id=int(superuser),
                                            message=MessageSegment.text(
-                                               f"{event.get_user_id()}使用翱翔电费{args.extract_plain_text().strip()}发生错误\n{e!r}") + MessageSegment.image(
+                                               f"{event.get_user_id()}使用翱翔电费{args.extract_plain_text().strip()}发生错误\n{e!r}\n堆栈信息:\n{error_trace}"
+                                           ) + MessageSegment.image(
                                                f"https://q.qlogo.cn/headimg_dl?dst_uin={event.get_user_id()}&spec=640"))
         await nwpu_electric.finish("出错了，请重试")
 
@@ -542,12 +564,14 @@ async def _(
     except MatcherException:
         raise
     except Exception as e:
-        logger.error(f"出错了{e!r}")
+        error_trace = traceback.format_exc()
+        logger.error(f"出错了{e!r}\n堆栈信息:\n{error_trace}")
         if global_config.superusers:
             logger.info(f"发送错误日志给SUPERUSERS")
             for superuser in global_config.superusers:
                 await bot.send_private_msg(user_id=int(superuser),
                                            message=MessageSegment.text(
-                                               f"{event.get_user_id()}使用戳一戳时发生错误\n{e!r}") + MessageSegment.image(
+                                               f"{event.get_user_id()}使用戳一戳时发生错误\n{e!r}\n堆栈信息:\n{error_trace}"
+                                           ) + MessageSegment.image(
                                                f"https://q.qlogo.cn/headimg_dl?dst_uin={event.get_user_id()}&spec=640"))
         await poke_notify.finish("出错了，请重试")
