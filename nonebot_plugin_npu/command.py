@@ -8,7 +8,8 @@ from nonebot.exception import MatcherException, ActionFailed
 
 require("nonebot_plugin_waiter")
 from nonebot_plugin_waiter import waiter, prompt
-import os, json, httpx, traceback
+import os, json, httpx, traceback, time
+from datetime import datetime
 from typing import List, Union
 from pathlib import Path
 from .config import Config
@@ -45,11 +46,16 @@ async def send_forward_msg(
 
 
 nwpu = on_command("翱翔", rule=to_me(), aliases={"npu", "nwpu"}, priority=10, block=True)
+# 空闲教室信息获取并生图时间太长所以缓存
+msg_empty_classroom_all = None
+msg_empty_classroom_all_time = datetime.fromtimestamp(time.time()).date()
 
 
 @nwpu.handle()
 async def nwpu_handel_function(bot: Bot, event: Union[PrivateMessageEvent, GroupMessageEvent],
                                args: Message = CommandArg()):
+    global msg_empty_classroom_all
+    global msg_empty_classroom_all_time
     nwpu_query_class = NwpuQuery()
     try:
         folder_path = os.path.join(os.path.dirname(__file__), 'data', event.get_user_id())
@@ -161,6 +167,12 @@ async def nwpu_handel_function(bot: Bot, event: Union[PrivateMessageEvent, Group
                             if new_grades:
                                 await nwpu.send(f"有新成绩\n{generate_grades_to_msg(new_grades)}")
                             await nwpu.finish()
+                        elif msg == "空教室查询" or msg == "教室查询" or msg == "空闲教室查询":
+                            if msg_empty_classroom_all is None or msg_empty_classroom_all_time != datetime.fromtimestamp(time.time()).date():
+                                await nwpu.send("正在刷新空教室信息，请等待，大约需要十秒")
+                                msg_empty_classroom_all = await nwpu_query_class.get_empty_classroom(folder_path)
+                                msg_empty_classroom_all_time = datetime.fromtimestamp(time.time()).date()
+                            await send_forward_msg(bot, event, (await bot.get_login_info())["nickname"], str(event.self_id), msg_empty_classroom_all)
                         elif msg == "排名":
                             rank_msg, _ = await nwpu_query_class.get_rank(folder_path)
                             await nwpu.finish(rank_msg)
@@ -177,7 +189,7 @@ async def nwpu_handel_function(bot: Bot, event: Union[PrivateMessageEvent, Group
                             await nwpu.send(f"正在获取全部考试信息，请等待")
                             exams_msg, _ = await nwpu_query_class.get_exams(folder_path, True)
                             if exams_msg:
-                                await send_forward_msg(bot, event, "全部考试", str(event.self_id),
+                                await send_forward_msg(bot, event, (await bot.get_login_info())["nickname"], str(event.self_id),
                                                        [MessageSegment.text("你的全部考试有：\n" + exams_msg)])
                                 await nwpu.finish()
                             else:
@@ -485,7 +497,7 @@ async def _(bot: Bot, event: Event, args: Message = CommandArg()):
                     for msg in msg_list:
                         msg_all.append(MessageSegment.text(msg))
                     await nwpu_electric.send("请选择楼栋，如0或1，输入停止可终止本次绑定")
-                    await send_forward_msg(bot, event, "building_all", str(event.self_id), msg_all)
+                    await send_forward_msg(bot, event, (await bot.get_login_info())["nickname"], str(event.self_id), msg_all)
                     if (building_msg := await prompt("")) is None:
                         await nwpu_electric.finish("已超时，本次绑定结束")
                     if building_msg.extract_plain_text().strip() == "停止":
@@ -496,7 +508,7 @@ async def _(bot: Bot, event: Event, args: Message = CommandArg()):
                     for msg in msg_list:
                         msg_all.append(MessageSegment.text(msg))
                     await nwpu_electric.send("请选择房间，如0或1，输入停止可终止本次绑定")
-                    await send_forward_msg(bot, event, "room_all", str(event.self_id), msg_all)
+                    await send_forward_msg(bot, event, (await bot.get_login_info())["nickname"], str(event.self_id), msg_all)
                     if (room_msg := await prompt("")) is None:
                         await nwpu_electric.finish("已超时，本次绑定结束")
                     if room_msg.extract_plain_text().strip() == "停止":

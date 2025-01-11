@@ -30,10 +30,12 @@ import os
 import httpx
 import rsa
 import base64
+from datetime import datetime
 from bs4 import BeautifulSoup
 from pathlib import Path
 import openpyxl
 import copy
+from .draw_empty_classroom_pic import draw_empty_classroom_pic
 from .utils import handle_training_program_data, handle_completed_and_incomplete_course, max_dict_depth, write_to_excel, \
     fromat_excel
 import urllib.parse
@@ -465,3 +467,50 @@ class NwpuQuery:
         xlsx_path = os.path.join(folder_path, xlsx_name)
         wb.save(xlsx_path)
         return xlsx_path, xlsx_name
+
+    # 查询空闲教室
+    async def get_empty_classroom(self, folder_path):
+        # 获取token
+        url = 'https://idle-classroom.nwpu.edu.cn/cas/login?redirect_uri=https://idle-classroom.nwpu.edu.cn/ui/'
+        response = await self.client.get(url, headers=self.headers)
+        match = re.search(r"token=([^&]+)", str(response.url))
+        token_value = match.group(1)
+        headers5 = self.headers3.copy()
+        headers5['X-Id-Token'] = token_value
+        # 获取所有教学楼
+        url = "https://idle-classroom.nwpu.edu.cn/api/idleclassroom/building/长安校区"
+        response = await self.client.get(url, headers=headers5)
+        building_all = json.loads(response.text)["data"]
+        # 计算当前周数
+        url = "https://idle-classroom.nwpu.edu.cn/api/idleclassroom/week/长安校区"
+        response = await self.client.get(url, headers=headers5)
+        week_of_semester = None
+        start_date_of_week = None
+        end_date_of_week = None
+        for week in json.loads(response.text)["data"]:
+            if week["startDay"] <= int(time.time() * 1000) <= week["endDay"]:
+                week_of_semester = week["weekOfSemester"]
+                start_date_of_week = datetime.fromtimestamp(int(week["startDay"]) / 1000).strftime("%Y-%m-%d")
+                end_date_of_week = datetime.fromtimestamp(int(week["endDay"]) / 1000).strftime("%Y-%m-%d")
+                break
+        # 获取课程总节数
+        url = "https://idle-classroom.nwpu.edu.cn/api/idleclassroom/unit/长安校区"
+        response = await self.client.get(url, headers=headers5)
+        unit_list = json.loads(response.text)["data"]
+        # 获取空闲教室
+        empty_classroom_all_data=[]
+        for building in building_all:
+            url = "https://idle-classroom.nwpu.edu.cn/api/idleclassroom/classroom"
+            params = {
+                "building": building,
+                "campus": "长安校区",
+                "weekOfSemester": week_of_semester,
+                "startDateOfWeek": start_date_of_week,
+                "endDateOfWeek": end_date_of_week,
+                "roomType": "-2",
+                "seatCode": "-2",
+            }
+            response = await self.client.get(url, headers=headers5, params=params)
+            empty_classroom_all_data.append(json.loads(response.text))
+        return await draw_empty_classroom_pic(folder_path, unit_list, building_all, empty_classroom_all_data)
+        
