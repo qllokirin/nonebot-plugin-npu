@@ -481,6 +481,7 @@ class NwpuQuery:
         url = "https://idle-classroom.nwpu.edu.cn/api/idleclassroom/building/长安校区"
         response = await self.client.get(url, headers=headers5)
         building_all = json.loads(response.text)["data"]
+        building_all = sorted(building_all, key=lambda x: 0 if "教学西楼" in x else 1)
         # 计算当前周数
         url = "https://idle-classroom.nwpu.edu.cn/api/idleclassroom/week/长安校区"
         response = await self.client.get(url, headers=headers5)
@@ -511,6 +512,9 @@ class NwpuQuery:
                 "seatCode": "-2",
             }
             response = await self.client.get(url, headers=headers5, params=params)
-            empty_classroom_all_data.append(json.loads(response.text))
+            data = json.loads(response.text)
+            if data["code"] == 200:
+                data["data"]["countMap"][str(datetime.today().isoweekday())] = sorted(data["data"]["countMap"][str(datetime.today().isoweekday())], key=lambda x: int(''.join(filter(str.isdigit, x["classroomName"]))))
+            empty_classroom_all_data.append(data)
         return await draw_empty_classroom_pic(folder_path, unit_list, building_all, empty_classroom_all_data)
         
