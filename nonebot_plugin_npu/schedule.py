@@ -154,8 +154,8 @@ async def check_grades_and_ranks_and_exams(qq, bot):
         else:
             logger.info("bot失联，终止更新")
         await nwpu_query_class_sched.close_client()
-    except httpx.TimeoutException as e:
-        logger.error(f"TimeoutException httpx超时{e!r}")
+    except (httpx.TimeoutException, httpx.ReadTimeout, httpx.ConnectTimeout):
+        logger.error(f"{qq}的检测check_grades_and_ranks_and_exams定时任务Timeout")
         await nwpu_query_class_sched.close_client()
     except Exception as e:
         logger.error(f"定时任务出现新错误{e!r}")
@@ -164,7 +164,7 @@ async def check_grades_and_ranks_and_exams(qq, bot):
         if global_config.superusers:
             logger.info(f"发送错误日志给SUPERUSERS")
             for superuser in global_config.superusers:
-                await bot.send_private_msg(user_id=int(superuser), message=f"{qq}的检测定时任务 发生错误\n{e!r}")
+                await bot.send_private_msg(user_id=int(superuser), message=f"{qq}的检测check_grades_and_ranks_and_exams定时任务 发生错误\n{e!r}")
 
 
 @scheduler.scheduled_job("interval", minutes=global_config.npu_check_time, id="check_new_info")
@@ -327,6 +327,9 @@ async def check_course_schedule(qq, bot):
                     logger.info(f"{qq}登录信息过期已推送")
         else:
             logger.info("bot失联，终止更新")
+        await nwpu_query_class_sched.close_client()
+    except (httpx.TimeoutException, httpx.ReadTimeout, httpx.ConnectTimeout):
+        logger.error(f"{qq}的检测check_course_schedule定时任务Timeout")
         await nwpu_query_class_sched.close_client()
     except Exception as e:
         logger.error(f"定时任务出现新错误{e!r}")
