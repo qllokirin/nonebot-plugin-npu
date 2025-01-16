@@ -1,6 +1,6 @@
 from nonebot import logger, get_driver, require, get_bot, get_plugin_config, on_notice
 from nonebot.adapters.onebot.v11 import Bot, MessageSegment, Event
-from nonebot.exception import MatcherException
+from nonebot.exception import MatcherException, ActionFailed
 
 require("nonebot_plugin_apscheduler")
 require("nonebot_plugin_waiter")
@@ -157,6 +157,15 @@ async def check_grades_and_ranks_and_exams(qq, bot):
     except (httpx.TimeoutException, httpx.ReadTimeout, httpx.ConnectTimeout):
         logger.error(f"{qq}的检测check_grades_and_ranks_and_exams定时任务Timeout")
         await nwpu_query_class_sched.close_client()
+    except ActionFailed as e:
+        logger.error(e.__dict__['info']['message'])
+        await nwpu_query_class_sched.close_client()
+        if "发送失败，请先添加对方为好友" in e.__dict__['info']['message']:
+            logger.info("对方已不是好友，删除该文件夹")
+            for file_name in os.listdir(folder_path):
+                file_path = os.path.join(folder_path, file_name)
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
     except Exception as e:
         logger.error(f"定时任务出现新错误{e!r}")
         await nwpu_query_class_sched.close_client()
@@ -331,6 +340,15 @@ async def check_course_schedule(qq, bot):
     except (httpx.TimeoutException, httpx.ReadTimeout, httpx.ConnectTimeout):
         logger.error(f"{qq}的检测check_course_schedule定时任务Timeout")
         await nwpu_query_class_sched.close_client()
+    except ActionFailed as e:
+        logger.error(e.__dict__['info']['message'])
+        await nwpu_query_class_sched.close_client()
+        if "发送失败，请先添加对方为好友" in e.__dict__['info']['message']:
+            logger.info("对方已不是好友，删除该文件夹")
+            for file_name in os.listdir(folder_path):
+                file_path = os.path.join(folder_path, file_name)
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
     except Exception as e:
         logger.error(f"定时任务出现新错误{e!r}")
         await nwpu_query_class_sched.close_client()
@@ -386,6 +404,15 @@ async def check_electric(qq, bot):
             logger.info(f'{qq}电费小于25，推送消息')
             await bot.send_private_msg(user_id=int(qq),
                                        message=f"{information_all}，电费不足25，当前电费{electric_left}，请及时缴纳\n若不想收到提醒消息，可发送 翱翔电费解绑 进行解除绑定")
+    except ActionFailed as e:
+        logger.error(e.__dict__['info']['message'])
+        folder_path = os.path.join(os.path.dirname(__file__), 'data', qq)
+        if "发送失败，请先添加对方为好友" in e.__dict__['info']['message']:
+            logger.info("对方已不是好友，删除该文件夹")
+            for file_name in os.listdir(folder_path):
+                file_path = os.path.join(folder_path, file_name)
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
     except Exception as e:
         logger.error(f"出错了{e!r}")
         if global_config.superusers:
