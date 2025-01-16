@@ -97,7 +97,9 @@ async def nwpu_handel_function(bot: Bot, event: Union[PrivateMessageEvent, Group
                 elif msg[:4] == "成绩查询":
                     course_name = msg[4:].strip()
                     if not course_name:
-                        course_name = (await prompt("请输入要查询的课程名")).extract_plain_text().strip()
+                        if (course_name := await prompt("请输入要查询的课程名")) is None:
+                            await nwpu.finish("已超时，本次查询结束")
+                        course_name = course_name.extract_plain_text().strip()
                     if os.path.isfile(os.path.join(folder_path, 'grades.json')):
                         with open((os.path.join(folder_path, 'grades.json')), 'r', encoding='utf-8') as f:
                             grades = json.loads(f.read())
