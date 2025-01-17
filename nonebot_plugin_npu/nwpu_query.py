@@ -301,6 +301,8 @@ class NwpuQuery:
         await self.client.get(url, headers=self.headers, timeout=5)
         url = 'https://jwxt.nwpu.edu.cn/student/for-std/student-portrait/getStdInfo?bizTypeAssoc=2&cultivateTypeAssoc=1'
         response = await self.client.get(url, headers=self.headers, timeout=5)
+        logger.info(response.status_code)
+        logger.info(response.text)
         grade = response.json()['student']['grade']
         major_id = response.json()['student']['major']['id']
         major_name = response.json()['student']['major']['nameZh']
