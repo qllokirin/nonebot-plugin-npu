@@ -96,13 +96,21 @@ class NwpuQuery:
             response = await self.client.get(url, headers=self.headers)
             logger.info("第一次sso-login 登陆结果")
             logger.info(response.status_code)
-            if response.status_code != 200:
-                logger.error(f"cookies登录失败，状态码: {response.status_code}，尝试重新登陆")
+            if response.status_code == 200:
+                return True
+            retry_count = 3
+            current_retry_count = 0
+            while current_retry_count < retry_count:
+                current_retry_count += 1
                 await asyncio.sleep(2)
                 url = 'https://jwxt.nwpu.edu.cn/student/sso-login'
                 response = await self.client.get(url, headers=self.headers)
-                logger.info("第二次sso-login 登陆结果")
-                logger.info(response.status_code)
+                logger.info(f"第 {retry_count} 次 sso-login 登陆结果: {response.status_code}")
+                if response.status_code == 200:
+                    logger.info("登录成功")
+                    break
+            # 超过重试次数也会返回True 会在后面抛出错误 不处理
+            # 返回False会删除cookies文件
             return True
         else:
             return False
@@ -311,8 +319,6 @@ class NwpuQuery:
         await self.client.get(url, headers=self.headers, timeout=5)
         url = 'https://jwxt.nwpu.edu.cn/student/for-std/student-portrait/getStdInfo?bizTypeAssoc=2&cultivateTypeAssoc=1'
         response = await self.client.get(url, headers=self.headers, timeout=5)
-        logger.info(response.status_code)
-        logger.info(response.text)
         grade = response.json()['student']['grade']
         major_id = response.json()['student']['major']['id']
         major_name = response.json()['student']['major']['nameZh']
