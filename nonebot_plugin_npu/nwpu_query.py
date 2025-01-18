@@ -30,6 +30,7 @@ import os
 import httpx
 import rsa
 import base64
+import asyncio
 from datetime import datetime
 from bs4 import BeautifulSoup
 from pathlib import Path
@@ -93,8 +94,15 @@ class NwpuQuery:
         if len(response.history) != 0:
             url = 'https://jwxt.nwpu.edu.cn/student/sso-login'
             response = await self.client.get(url, headers=self.headers)
-            logger.info("sso-login登陆结果")
+            logger.info("第一次sso-login 登陆结果")
             logger.info(response.status_code)
+            if response.status_code != 200:
+                logger.error(f"cookies登录失败，状态码: {response.status_code}，尝试重新登陆")
+                await asyncio.sleep(2)
+                url = 'https://jwxt.nwpu.edu.cn/student/sso-login'
+                response = await self.client.get(url, headers=self.headers)
+                logger.info("第二次sso-login 登陆结果")
+                logger.info(response.status_code)
             return True
         else:
             return False
