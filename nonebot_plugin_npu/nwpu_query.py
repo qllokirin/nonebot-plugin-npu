@@ -92,7 +92,9 @@ class NwpuQuery:
         response = await self.client.get(url, headers=self.headers, timeout=10)
         if len(response.history) != 0:
             url = 'https://jwxt.nwpu.edu.cn/student/sso-login'
-            await self.client.get(url, headers=self.headers)
+            response = await self.client.get(url, headers=self.headers)
+            logger.info("sso-login登陆结果")
+            logger.info(response.status_code)
             return True
         else:
             return False
