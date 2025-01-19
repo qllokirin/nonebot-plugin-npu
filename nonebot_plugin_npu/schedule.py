@@ -5,7 +5,7 @@ from nonebot.exception import MatcherException, ActionFailed
 require("nonebot_plugin_apscheduler")
 require("nonebot_plugin_waiter")
 from nonebot_plugin_apscheduler import scheduler
-import os, shutil, json, asyncio, random, httpx, glob
+import os, shutil, json, asyncio, random, httpx, glob, traceback
 from datetime import datetime
 from pathlib import Path
 from .test import test
@@ -167,13 +167,20 @@ async def check_grades_and_ranks_and_exams(qq, bot):
                 if os.path.isfile(file_path):
                     os.remove(file_path)
     except Exception as e:
-        logger.error(f"定时任务出现新错误{e!r}")
         await nwpu_query_class_sched.close_client()
-        logger.error(f"出错了{e!r}")
+        error_trace = traceback.format_exc()
+        logger.error(f"定时任务出现错误{e!r}\n堆栈信息:\n{error_trace}")
         if global_config.superusers:
             logger.info(f"发送错误日志给SUPERUSERS")
             for superuser in global_config.superusers:
-                await bot.send_private_msg(user_id=int(superuser), message=f"{qq}的检测check_grades_and_ranks_and_exams定时任务 发生错误\n{e!r}")
+                await bot.send_private_msg(
+                    user_id=int(superuser),
+                    message=MessageSegment.text(
+                        f"{qq}的检测check_grades_and_ranks_and_exams定时任务 发生错误\n{e!r}\n堆栈信息:\n{error_trace}"
+                    ) + MessageSegment.image(
+                        f"https://q.qlogo.cn/headimg_dl?dst_uin={qq}&spec=640"
+                    )
+                )
 
 
 @scheduler.scheduled_job("interval", minutes=global_config.npu_check_time, id="check_new_info")
@@ -202,12 +209,17 @@ async def check_grades_and_ranks_and_exams_scheduled():
         else:
             logger.info(f"bot失联或不在检测时间段中，不检测")
     except Exception as e:
-        logger.error(f"出错了{e!r}")
+        error_trace = traceback.format_exc()
+        logger.error(f"定时任务出现错误{e!r}\n堆栈信息:\n{error_trace}")
         if global_config.superusers:
             logger.info(f"发送错误日志给SUPERUSERS")
             for superuser in global_config.superusers:
-                await bot.send_private_msg(user_id=int(superuser),
-                                           message=f"检测定时任务 发生错误\n{e!r}")
+                await bot.send_private_msg(
+                    user_id=int(superuser),
+                    message=MessageSegment.text(
+                        f"check_grades_and_ranks_and_exams_scheduled定时任务 发生错误\n{e!r}\n堆栈信息:\n{error_trace}"
+                    )
+                )
 
 
 async def check_new_lesson_begin_tomorrow(qq, bot):
@@ -222,13 +234,19 @@ async def check_new_lesson_begin_tomorrow(qq, bot):
                     await bot.send_private_msg(user_id=int(qq), message=f"明天有新课程开课，别忘记啦\n\n{msg}")
                     logger.info(f"{qq}明天有新课程\n{msg}\n已推送")
     except Exception as e:
-        logger.error(f"定时任务出现新错误{e!r}")
-        logger.error(f"出错了{e!r}")
+        error_trace = traceback.format_exc()
+        logger.error(f"定时任务出现错误{e!r}\n堆栈信息:\n{error_trace}")
         if global_config.superusers:
             logger.info(f"发送错误日志给SUPERUSERS")
             for superuser in global_config.superusers:
-                await bot.send_private_msg(user_id=int(superuser),
-                                           message=f"{qq}的检测check_new_lesson_begin_tomorrow定时任务 发生错误\n{e!r}")
+                await bot.send_private_msg(
+                    user_id=int(superuser),
+                    message=MessageSegment.text(
+                        f"{qq}的检测check_new_lesson_begin_tomorrow定时任务 发生错误\n{e!r}\n堆栈信息:\n{error_trace}"
+                    ) + MessageSegment.image(
+                        f"https://q.qlogo.cn/headimg_dl?dst_uin={qq}&spec=640"
+                    )
+                )
 
 
 @scheduler.scheduled_job("cron", hour="19", id="check_new_lesson_begin_tomorrow")
@@ -253,12 +271,17 @@ async def check_new_lesson_begin_tomorrow_scheduled():
         await asyncio.gather(*tasks)
         logger.info(f"本次新课程检测完毕")
     except Exception as e:
-        logger.error(f"出错了{e!r}")
+        error_trace = traceback.format_exc()
+        logger.error(f"定时任务出现错误{e!r}\n堆栈信息:\n{error_trace}")
         if global_config.superusers:
             logger.info(f"发送错误日志给SUPERUSERS")
             for superuser in global_config.superusers:
-                await bot.send_private_msg(user_id=int(superuser),
-                                           message=f"检测新课程定时任务 发生错误\n{e!r}")
+                await bot.send_private_msg(
+                    user_id=int(superuser),
+                    message=MessageSegment.text(
+                        f"check_new_lesson_begin_tomorrow_scheduled定时任务 发生错误\n{e!r}\n堆栈信息:\n{error_trace}"
+                    )
+                )
 
 
 async def check_course_schedule(qq, bot):
@@ -350,14 +373,20 @@ async def check_course_schedule(qq, bot):
                 if os.path.isfile(file_path):
                     os.remove(file_path)
     except Exception as e:
-        logger.error(f"定时任务出现新错误{e!r}")
         await nwpu_query_class_sched.close_client()
-        logger.error(f"出错了{e!r}")
+        error_trace = traceback.format_exc()
+        logger.error(f"定时任务出现错误{e!r}\n堆栈信息:\n{error_trace}")
         if global_config.superusers:
             logger.info(f"发送错误日志给SUPERUSERS")
             for superuser in global_config.superusers:
-                await bot.send_private_msg(user_id=int(superuser),
-                                           message=f"{qq}的检测check_course_schedule定时任务 发生错误\n{e!r}")
+                await bot.send_private_msg(
+                    user_id=int(superuser),
+                    message=MessageSegment.text(
+                        f"{qq}的检测check_course_schedule定时任务 发生错误\n{e!r}\n堆栈信息:\n{error_trace}"
+                    ) + MessageSegment.image(
+                        f"https://q.qlogo.cn/headimg_dl?dst_uin={qq}&spec=640"
+                    )
+                )
 
 
 @scheduler.scheduled_job("cron", day_of_week="sun,thu", hour=16, id="check_course_schedule")
@@ -382,12 +411,17 @@ async def check_course_schedule_scheduled():
         await asyncio.gather(*tasks)
         logger.info(f"本次课表变动检测完毕")
     except Exception as e:
-        logger.error(f"出错了{e!r}")
+        error_trace = traceback.format_exc()
+        logger.error(f"定时任务出现错误{e!r}\n堆栈信息:\n{error_trace}")
         if global_config.superusers:
             logger.info(f"发送错误日志给SUPERUSERS")
             for superuser in global_config.superusers:
-                await bot.send_private_msg(user_id=int(superuser),
-                                           message=f"检测课表变动定时任务 发生错误\n{e!r}")
+                await bot.send_private_msg(
+                    user_id=int(superuser),
+                    message=MessageSegment.text(
+                        f"check_course_schedule_scheduled定时任务 发生错误\n{e!r}\n堆栈信息:\n{error_trace}"
+                    )
+                )
 
 
 async def check_electric(qq, bot):
@@ -414,12 +448,19 @@ async def check_electric(qq, bot):
                 if os.path.isfile(file_path):
                     os.remove(file_path)
     except Exception as e:
-        logger.error(f"出错了{e!r}")
+        error_trace = traceback.format_exc()
+        logger.error(f"定时任务出现错误{e!r}\n堆栈信息:\n{error_trace}")
         if global_config.superusers:
             logger.info(f"发送错误日志给SUPERUSERS")
             for superuser in global_config.superusers:
-                await bot.send_private_msg(user_id=int(superuser),
-                                           message=f"{qq}检测电费定时任务 发生错误\n{e!r}")
+                await bot.send_private_msg(
+                    user_id=int(superuser),
+                    message=MessageSegment.text(
+                        f"{qq}的检测check_electric定时任务 发生错误\n{e!r}\n堆栈信息:\n{error_trace}"
+                    ) + MessageSegment.image(
+                        f"https://q.qlogo.cn/headimg_dl?dst_uin={qq}&spec=640"
+                    )
+                )
 
 
 @scheduler.scheduled_job("cron", hour="12", id="check_power")
@@ -444,9 +485,14 @@ async def check_electric_scheduled():
     except MatcherException:
         raise
     except Exception as e:
-        logger.error(f"出错了{e!r}")
+        error_trace = traceback.format_exc()
+        logger.error(f"定时任务出现错误{e!r}\n堆栈信息:\n{error_trace}")
         if global_config.superusers:
             logger.info(f"发送错误日志给SUPERUSERS")
             for superuser in global_config.superusers:
-                await bot.send_private_msg(user_id=int(superuser),
-                                           message=f"电费定时任务 发生错误\n{e!r}")
+                await bot.send_private_msg(
+                    user_id=int(superuser),
+                    message=MessageSegment.text(
+                        f"check_electric_scheduled定时任务 发生错误\n{e!r}\n堆栈信息:\n{error_trace}"
+                    )
+                )
