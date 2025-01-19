@@ -209,7 +209,21 @@ class NwpuQuery:
                 with open((os.path.join(folder_path, 'cookies.txt')), 'w', encoding='utf-8') as f:
                     f.write(json.dumps(cookies, indent=4, ensure_ascii=False))
                 url = 'https://jwxt.nwpu.edu.cn/student/sso-login'
-                await self.client.get(url, headers=self.headers)
+                response = await self.client.get(url, headers=self.headers)
+                logger.info("第一次sso-login 登陆结果")
+                logger.info(response.status_code)
+                if response.status_code != 200:
+                    retry_count = 5
+                    current_retry_count = 0
+                    while current_retry_count < retry_count:
+                        current_retry_count += 1
+                        await asyncio.sleep(2)
+                        url = 'https://jwxt.nwpu.edu.cn/student/sso-login'
+                        response = await self.client.get(url, headers=self.headers)
+                        logger.info(f"第 {current_retry_count} 次 sso-login 登陆结果: {response.status_code}")
+                        if response.status_code == 200:
+                            logger.info("登录成功")
+                            break
                 return True
 
     async def verification_code_login(self, captcha, folder_path):
@@ -240,7 +254,21 @@ class NwpuQuery:
             with open((os.path.join(folder_path, 'cookies.txt')), 'w', encoding='utf-8') as f:
                 f.write(json.dumps(cookies, indent=4, ensure_ascii=False))
             url = 'https://jwxt.nwpu.edu.cn/student/sso-login'
-            await self.client.get(url, headers=self.headers)
+            response = await self.client.get(url, headers=self.headers)
+            logger.info("第一次sso-login 登陆结果")
+            logger.info(response.status_code)
+            if response.status_code != 200:
+                retry_count = 3
+                current_retry_count = 0
+                while current_retry_count < retry_count:
+                    current_retry_count += 1
+                    await asyncio.sleep(2)
+                    url = 'https://jwxt.nwpu.edu.cn/student/sso-login'
+                    response = await self.client.get(url, headers=self.headers)
+                    logger.info(f"第 {current_retry_count} 次 sso-login 登陆结果: {response.status_code}")
+                    if response.status_code == 200:
+                        logger.info("登录成功")
+                        break
             return 2
 
     # 查询student_assoc
