@@ -354,22 +354,22 @@ class NwpuQuery:
         response = await self.client.get(url, headers=self.headers, timeout=5)
         score_range_count = response.json()['scoreRangeCount']
         total_people_numb = sum(score_range_count.values())
+        url = f"https://jwxt.nwpu.edu.cn/student/for-std/student-portrait/getMyGpa?studentAssoc={self.student_assoc}"
+        response = await self.client.get(url, headers=self.headers, timeout=5)
+        before_rank_gpa = response.json()['stdGpaRankDto']['beforeRankGpa']
+        after_rank_gpa = response.json()['stdGpaRankDto']['afterRankGpa']
         url = f'https://jwxt.nwpu.edu.cn/student/for-std/student-portrait/getMyGrades?studentAssoc={self.student_assoc}&semesterAssoc='
         response = await self.client.get(url, headers=self.headers, timeout=5)
         if response.json() is None:
             return "暂无排名喵", 0
         else:
             gpa = response.json()['gpa']
-            rank_msg = f"你的绩点是{gpa}，排名接口已经消失"
+            rank_msg = f"你的绩点是{gpa}，{major_name}专业\n根据学生画像饼图计算专业/学院总人数为{total_people_numb}，排名接口已经消失"
             rank = 0
-            # rank = response.json()['rank']
-            # before_rank_gpa = response.json()['beforeRankGpa']
-            # after_rank_gpa = response.json()['afterRankGpa']
-            # rank_msg = f"你的绩点是{gpa}，在{major_name}中排名是{rank}/{total_people_numb}({rank / total_people_numb * 100:.2f}%)"
-            # if before_rank_gpa:
-            #     rank_msg += f"\n和前一名差{before_rank_gpa - gpa:.3f}绩点"
-            # if after_rank_gpa:
-            #     rank_msg += f"\n与后一名差{gpa - after_rank_gpa:.3f}绩点"
+            if before_rank_gpa:
+                rank_msg += f"\n和前一名差{before_rank_gpa - gpa:.3f}绩点"
+            if after_rank_gpa:
+                rank_msg += f"\n与后一名差{gpa - after_rank_gpa:.3f}绩点"
             with open((os.path.join(folder_path, 'rank.txt')), 'w', encoding='utf-8') as f:
                 f.write(str(rank))
             if not if_all:
@@ -381,21 +381,12 @@ class NwpuQuery:
                 if response.json() is None:
                     continue
                 gpa = response.json()['gpa']
-                rank_msg = f"你的绩点是{gpa}，排名接口已经消失"
-                # rank = response.json()['rank']
-                # before_rank_gpa = response.json()['beforeRankGpa']
-                # after_rank_gpa = response.json()['afterRankGpa']
-                # rank_msg += f"\n\n{semesters_all[semester]}\n你的绩点是{gpa}，在{major_name}中排名是{rank}/{total_people_numb}({rank / total_people_numb * 100:.2f}%)"
-                # if before_rank_gpa:
-                #     rank_msg += f"\n和前一名差{before_rank_gpa - gpa:.3f}绩点"
-                # if after_rank_gpa:
-                #     rank_msg += f"\n与后一名差{gpa - after_rank_gpa:.3f}绩点"
+                rank_msg += f"\n\n{semesters_all[semester]}\n你的绩点是{gpa}\n排名接口已经消失"
             return rank_msg, 0
 
     # 查询考试信息
     async def get_exams(self, folder_path, is_finished_show=False):
         url = 'https://jwxt.nwpu.edu.cn/student/for-std/exam-arrange'
-        # 这个接口会获得一个20+mb的html文件，所以timeout设置为30
         response = await self.client.get(url, headers=self.headers, timeout=30)
         soup = BeautifulSoup(response.text, 'html.parser')
         rows = soup.find_all('tr')
