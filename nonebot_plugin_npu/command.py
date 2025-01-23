@@ -227,12 +227,15 @@ async def nwpu_handel_function(bot: Bot, event: Union[PrivateMessageEvent, Group
                             await nwpu.finish("退出成功")
                         elif msg == "加权百分制成绩":
                             await nwpu.send(
-                                f"加权百分制成绩的意思是计算原始百分制成绩的加权平均，不使用gpa（绩点）成绩，P/NP成绩不计入加权百分制成绩中")
+                                f"加权百分制成绩的意思是计算原始百分制成绩的加权平均，不使用gpa（绩点）成绩，P/NP/优秀等非百分制成绩不计入加权百分制成绩中，补考成绩按60分进行计算")
                             await nwpu.send(f"正在获取全部成绩，请等待")
                             _, grades = await nwpu_query_class.get_grades(folder_path)
                             if grades:
                                 await nwpu.send(f"正在计算加权百分制成绩")
                                 grades = [grade for grade in grades if grade['grade_score'].isdigit()]
+                                for grade in grades:
+                                    if grade["grade_detail"] and grade["grade_detail"][-1][-3:] == "（补）":
+                                        grade['grade_score'] = "60"
                                 average_grades = sum(
                                     [float(grade['grade_score']) * float(grade['credit']) for grade in grades]) / sum(
                                     [float(grade['credit']) for grade in grades])

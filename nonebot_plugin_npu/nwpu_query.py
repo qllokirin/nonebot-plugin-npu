@@ -308,9 +308,8 @@ class NwpuQuery:
                 url = 'https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet/info/' + self.student_assoc + '?semester=' + sem
                 response = await self.client.get(url, headers=self.headers2, timeout=5)
                 if response.status_code != 200:
-                    logger.error(
-                        f"{folder_path}成绩获取失败 状态码: {response.status_code}，返回None，在定时任务中会跳过，在指令获取中会返回错误信息")
-                    return None, None
+                    await self.get_student_assoc(folder_path)
+                    raise Exception("student_assoc重新获取")
                 response = json.loads(response.text)['semesterId2studentGrades'][sem]
                 for course in response:
                     name = course['course']['nameZh']
@@ -320,6 +319,12 @@ class NwpuQuery:
                     gpa = str(course['gp'])
                     credit = course['course']['credits']
                     grade_detail = re.findall('>(.+?)</span>', course['gradeDetail'])
+                    if re.findall(r"缓考成绩:\d+", course['gradeDetail']):
+                        grade_detail += re.findall(r"缓考成绩:\d+", course['gradeDetail'])
+                    if re.findall(r"补考成绩:\d+", course['gradeDetail']):
+                        grade_detail += re.findall(r"补考成绩:\d+", course['gradeDetail'])
+                    if grade_detail != [None] and grade_detail != []:
+                        grade_detail[-1] += (course['fillAGrace'] or "")
                     grades_msg.append(f'{name}, {grade_score}, {gpa}, {credit}, {grade_detail}')
                     grades_one_subject = {
                         "name": name,
@@ -356,6 +361,9 @@ class NwpuQuery:
         total_people_numb = sum(score_range_count.values())
         url = f"https://jwxt.nwpu.edu.cn/student/for-std/student-portrait/getMyGpa?studentAssoc={self.student_assoc}"
         response = await self.client.get(url, headers=self.headers, timeout=5)
+        if response.status_code != 200:
+            await self.get_student_assoc(folder_path)
+            raise Exception("student_assoc重新获取")
         before_rank_gpa = response.json()['stdGpaRankDto']['beforeRankGpa']
         after_rank_gpa = response.json()['stdGpaRankDto']['afterRankGpa']
         url = f'https://jwxt.nwpu.edu.cn/student/for-std/student-portrait/getMyGrades?studentAssoc={self.student_assoc}&semesterAssoc='
@@ -431,6 +439,9 @@ class NwpuQuery:
         semester = BeautifulSoup(response.text, 'html.parser').find('select', {'id': 'allSemesters'}).find('option', selected=True)
         url = f"https://jwxt.nwpu.edu.cn/student/for-std/course-table/semester/{semester['value']}/print-data/{self.student_assoc}?hasExperiment=true"
         response = await self.client.get(url, headers=self.headers, timeout=10)
+        if response.status_code != 200:
+            await self.get_student_assoc(folder_path)
+            raise Exception("student_assoc重新获取")
         course_table_path = os.path.join(folder_path, f'{semester.text}.html')
         for file_path in [f for f in list(Path(folder_path).glob("*.html")) if f.name.endswith(("春.html", "夏.html", "秋.html"))]:
             file_path.unlink()
@@ -474,6 +485,9 @@ class NwpuQuery:
     async def get_training_program(self, folder_path):
         url = f'https://jwxt.nwpu.edu.cn/student/for-std/program/root-module-json/{self.student_assoc}'
         response = await self.client.get(url, headers=self.headers2, timeout=10)
+        if response.status_code != 200:
+            await self.get_student_assoc(folder_path)
+            raise Exception("student_assoc重新获取")
         # training_program 的值
         training_program_data = []
         training_program_data_raw = json.loads(response.text)["children"]
