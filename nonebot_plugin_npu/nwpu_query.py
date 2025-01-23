@@ -101,7 +101,6 @@ class NwpuQuery:
             retry_count = 3
             current_retry_count = 0
             while current_retry_count < retry_count:
-                current_retry_count += 1
                 await asyncio.sleep(2)
                 url = 'https://jwxt.nwpu.edu.cn/student/sso-login'
                 response = await self.client.get(url, headers=self.headers)
@@ -109,6 +108,9 @@ class NwpuQuery:
                 if response.status_code == 200:
                     logger.info("登录成功")
                     break
+                current_retry_count += 1
+                if current_retry_count == retry_count and response.status_code != 200:
+                    raise Exception(f"翱翔教务登录失败，状态码{response.status_code}")
             # 超过重试次数也会返回True 会在后面抛出错误 不处理
             # 返回False会删除cookies文件
             return True
