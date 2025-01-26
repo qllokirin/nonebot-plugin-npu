@@ -429,6 +429,9 @@ async def nwpu_handel_function(bot: Bot, event: Union[PrivateMessageEvent, Group
     except (httpx.TimeoutException, httpx.ReadTimeout, httpx.ConnectTimeout):
         await nwpu_query_class.close_client()
         await nwpu.send("请求超时，本次指令已结束，请稍等后重试")
+    except Exception("翱翔教务登录失败，状态码500"):
+        await nwpu_query_class.close_client()
+        await nwpu.send("请求超时，本次指令已结束，请稍等后重试")
     except ActionFailed:
         await nwpu_query_class.close_client()
         logger.error(f"文件发送失败")

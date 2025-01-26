@@ -94,8 +94,8 @@ class NwpuQuery:
         if len(response.history) != 0:
             url = 'https://jwxt.nwpu.edu.cn/student/sso-login'
             response = await self.client.get(url, headers=self.headers)
-            logger.info("第一次sso-login 登陆结果")
-            logger.info(response.status_code)
+            logger.debug("第一次sso-login 登陆结果")
+            logger.debug(response.status_code)
             if response.status_code == 200:
                 return True
             retry_count = 3
@@ -104,9 +104,9 @@ class NwpuQuery:
                 await asyncio.sleep(2)
                 url = 'https://jwxt.nwpu.edu.cn/student/sso-login'
                 response = await self.client.get(url, headers=self.headers)
-                logger.info(f"第 {current_retry_count} 次 sso-login 登陆结果: {response.status_code}")
+                logger.debug(f"第 {current_retry_count} 次 sso-login 登陆结果: {response.status_code}")
                 if response.status_code == 200:
-                    logger.info("登录成功")
+                    logger.debug("登录成功")
                     break
                 current_retry_count += 1
                 if current_retry_count == retry_count and response.status_code != 200:
@@ -212,8 +212,8 @@ class NwpuQuery:
                     f.write(json.dumps(cookies, indent=4, ensure_ascii=False))
                 url = 'https://jwxt.nwpu.edu.cn/student/sso-login'
                 response = await self.client.get(url, headers=self.headers)
-                logger.info("第一次sso-login 登陆结果")
-                logger.info(response.status_code)
+                logger.debug("第一次sso-login 登陆结果")
+                logger.debug(response.status_code)
                 if response.status_code != 200:
                     retry_count = 5
                     current_retry_count = 0
@@ -222,9 +222,9 @@ class NwpuQuery:
                         await asyncio.sleep(2)
                         url = 'https://jwxt.nwpu.edu.cn/student/sso-login'
                         response = await self.client.get(url, headers=self.headers)
-                        logger.info(f"第 {current_retry_count} 次 sso-login 登陆结果: {response.status_code}")
+                        logger.debug(f"第 {current_retry_count} 次 sso-login 登陆结果: {response.status_code}")
                         if response.status_code == 200:
-                            logger.info("登录成功")
+                            logger.debug("登录成功")
                             break
                 return True
 
@@ -257,8 +257,8 @@ class NwpuQuery:
                 f.write(json.dumps(cookies, indent=4, ensure_ascii=False))
             url = 'https://jwxt.nwpu.edu.cn/student/sso-login'
             response = await self.client.get(url, headers=self.headers)
-            logger.info("第一次sso-login 登陆结果")
-            logger.info(response.status_code)
+            logger.debug("第一次sso-login 登陆结果")
+            logger.debug(response.status_code)
             if response.status_code != 200:
                 retry_count = 3
                 current_retry_count = 0
@@ -267,9 +267,9 @@ class NwpuQuery:
                     await asyncio.sleep(2)
                     url = 'https://jwxt.nwpu.edu.cn/student/sso-login'
                     response = await self.client.get(url, headers=self.headers)
-                    logger.info(f"第 {current_retry_count} 次 sso-login 登陆结果: {response.status_code}")
+                    logger.debug(f"第 {current_retry_count} 次 sso-login 登陆结果: {response.status_code}")
                     if response.status_code == 200:
-                        logger.info("登录成功")
+                        logger.debug("登录成功")
                         break
             return 2
 
@@ -292,7 +292,7 @@ class NwpuQuery:
                 json.dump(info, f, indent=4, ensure_ascii=False)
             return True
         else:
-            logger.info("get_student_assoc failed", folder_path)
+            logger.error("get_student_assoc failed", folder_path)
             return False
 
     # 查询成绩
