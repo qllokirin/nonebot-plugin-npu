@@ -527,7 +527,7 @@ async def _(bot: Bot, event: Event, args: Message = CommandArg()):
                     with open(os.path.join(folder_path, 'electric.json'), 'w', encoding='utf-8') as f:
                         json.dump(data, f, indent=4, ensure_ascii=False)
                     await nwpu_electric.send(f'{information_all}，当前剩余电量：{electric_left}')
-                    await nwpu_electric.finish("每天12点会自动定时查询，电费小于25时会自动提示充值")
+                    await nwpu_electric.finish("每天12点会自动定时查询，电费小于15时会自动提示充值")
                 except (ValueError, IndexError):
                     await nwpu_electric.finish("值错误或数组越界，本次绑定已结束，请输入 翱翔电费绑定 重新开始")
                 except Exception as e:

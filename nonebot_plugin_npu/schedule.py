@@ -157,6 +157,9 @@ async def check_grades_and_ranks_and_exams(qq, bot):
     except (httpx.TimeoutException, httpx.ReadTimeout, httpx.ConnectTimeout):
         logger.error(f"{qq}的检测check_grades_and_ranks_and_exams定时任务Timeout")
         await nwpu_query_class_sched.close_client()
+    except Exception("翱翔教务登录失败，状态码500"):
+        await nwpu_query_class_sched.close_client()
+        logger.error(f"{qq}的检测check_grades_and_ranks_and_exams定时任务请求超时，状态码500")
     except ActionFailed as e:
         logger.error(e.__dict__['info']['message'])
         await nwpu_query_class_sched.close_client()
@@ -434,10 +437,10 @@ async def check_electric(qq, bot):
         electric_left, information_all = await get_electric_left(electric_information['campus'], electric_information['building'],
                                                 electric_information['room'])
         logger.info(f'{qq}电费还剩{electric_left}')
-        if electric_left < 25:
-            logger.info(f'{qq}电费小于25，推送消息')
+        if electric_left < 15:
+            logger.info(f'{qq}电费小于15，推送消息')
             await bot.send_private_msg(user_id=int(qq),
-                                       message=f"{information_all}，电费不足25，当前电费{electric_left}，请及时缴纳\n若不想收到提醒消息，可发送 翱翔电费解绑 进行解除绑定")
+                                       message=f"{information_all}，电费不足15，当前电费{electric_left}，请及时缴纳\n若不想收到提醒消息，可发送 翱翔电费解绑 进行解除绑定")
     except ActionFailed as e:
         logger.error(e.__dict__['info']['message'])
         folder_path = os.path.join(os.path.dirname(__file__), 'data', qq)
