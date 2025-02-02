@@ -157,9 +157,6 @@ async def check_grades_and_ranks_and_exams(qq, bot):
     except (httpx.TimeoutException, httpx.ReadTimeout, httpx.ConnectTimeout):
         logger.error(f"{qq}的检测check_grades_and_ranks_and_exams定时任务Timeout")
         await nwpu_query_class_sched.close_client()
-    except Exception("翱翔教务登录失败，状态码500"):
-        await nwpu_query_class_sched.close_client()
-        logger.error(f"{qq}的检测check_grades_and_ranks_and_exams定时任务请求超时，状态码500")
     except ActionFailed as e:
         logger.error(e.__dict__['info']['message'])
         await nwpu_query_class_sched.close_client()
@@ -171,6 +168,9 @@ async def check_grades_and_ranks_and_exams(qq, bot):
                     os.remove(file_path)
     except Exception as e:
         await nwpu_query_class_sched.close_client()
+        if str(e) == "翱翔教务登录失败，状态码500":
+            logger.error("检测check_grades_and_ranks_and_exams定时任务请求超时，状态码500")
+            return
         error_trace = traceback.format_exc()
         logger.error(f"定时任务出现错误{e!r}\n堆栈信息:\n{error_trace}")
         if global_config.superusers:
