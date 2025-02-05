@@ -450,6 +450,8 @@ async def check_electric(qq, bot):
                 file_path = os.path.join(folder_path, file_name)
                 if os.path.isfile(file_path):
                     os.remove(file_path)
+    except (httpx.TimeoutException, httpx.ReadTimeout, httpx.ConnectTimeout):
+        logger.error(f"{qq}的检测check_electric定时任务Timeout")
     except Exception as e:
         error_trace = traceback.format_exc()
         logger.error(f"定时任务出现错误{e!r}\n堆栈信息:\n{error_trace}")
