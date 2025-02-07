@@ -377,6 +377,9 @@ async def check_course_schedule(qq, bot):
                     os.remove(file_path)
     except Exception as e:
         await nwpu_query_class_sched.close_client()
+        if str(e) == "翱翔教务登录失败，状态码500":
+            logger.error("检测check_course_schedule定时任务请求超时，状态码500")
+            return
         error_trace = traceback.format_exc()
         logger.error(f"定时任务出现错误{e!r}\n堆栈信息:\n{error_trace}")
         if global_config.superusers:
