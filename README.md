@@ -1,3 +1,7 @@
+# 翱翔门户鉴权加密大升级，本人能力有限，无法抓包实现，故归档此仓库
+
+愿有朝一日能再相遇
+
 <!-- markdownlint-disable MD033 MD036 MD041 -->
 
 <div align="center">
