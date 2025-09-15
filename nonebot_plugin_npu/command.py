@@ -387,9 +387,9 @@ async def nwpu_handel_function(
                                 logger.info(f"")
                                 result = []
                                 for sid, info in student_assoc_all.items():
-                                    result.append(f"身份号 {sid}:\n{info}\n")
+                                    result.append(f"\n身份号 {sid}:\n{info}\n")
                                 await nwpu.send(
-                                    f"查询到多个身份:\n\n{'\n'.join(result)}"
+                                    f"查询到多个身份:\n\n{''.join(result)}"
                                 )
                                 if (
                                     student_assoc := await prompt(
