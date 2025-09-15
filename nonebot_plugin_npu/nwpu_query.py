@@ -598,8 +598,8 @@ async def main():
                     logger.info(f"")
                     result = []
                     for sid, info in student_assoc_all.items():
-                        result.append(f"身份号 {sid}:\n{info}\n")
-                    logger.info(f"查询到多个身份:\n\n{'\n'.join(result)}")
+                        result.append(f"\n身份号 {sid}:\n{info}\n")
+                    logger.info(f"查询到多个身份:\n\n{''.join(result)}")
                     student_assoc = input("请输入要绑定的身份号（六位纯数字）")
                     with open(
                         nwpu_query_class.info_file_path, "r", encoding="utf-8"
