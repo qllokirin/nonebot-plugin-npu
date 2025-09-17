@@ -94,7 +94,7 @@ async def nwpu_handel_function(
                         else:
                             await nwpu.send("暂无考试")
                         await nwpu_query_class.use_recent_cookies_login()
-                        _, exams = await nwpu_query_class.get_exams()
+                        exams = await nwpu_query_class.get_exams()
                         if exams_old != exams:
                             new_exams = [
                                 exam for exam in exams if exam not in exams_old
@@ -105,9 +105,9 @@ async def nwpu_handel_function(
                                 )
                     else:
                         await nwpu_query_class.use_recent_cookies_login()
-                        exams_msg = await nwpu_query_class.get_exams()
-                        if exams_msg:
-                            await nwpu.send("你的全部未结束考试有：\n" + exams_msg)
+                        exams = await nwpu_query_class.get_exams()
+                        if exams:
+                            await nwpu.send("你的全部未结束考试有：\n" + get_exams_msg(exams))
                         else:
                             await nwpu.send("暂无考试")
                     await nwpu.finish()
@@ -239,6 +239,10 @@ async def nwpu_handel_function(
                                     student_assoc = (
                                         student_assoc.extract_plain_text().strip()
                                     )
+                                    if student_assoc in str(student_assoc_all) and len(student_assoc) == 6 and student_assoc.isdigit():
+                                        nwpu_query_class.student_assoc = student_assoc
+                                    else:
+                                        await nwpu.send("未匹配到该身份，已随机绑定一个身份")
                                     with open(
                                         nwpu_query_class.info_file_path,
                                         "r",
@@ -247,7 +251,7 @@ async def nwpu_handel_function(
                                         info = json.load(f)
                                     new_info = {}
                                     new_info["cookies"] = info["cookies"]
-                                    new_info["student_assoc"] = student_assoc
+                                    new_info["student_assoc"] = nwpu_query_class.student_assoc
                                     with open(
                                         nwpu_query_class.info_file_path,
                                         "w",
@@ -298,10 +302,10 @@ async def nwpu_handel_function(
                                     "获取考试信息中...\n"
                                     "-------------------"
                                 )
-                                exams_msg = await nwpu_query_class.get_exams(False)
+                                exams = await nwpu_query_class.get_exams(False)
                                 exams_msg = (
-                                    ("你的考试有：\n" + exams_msg)
-                                    if exams_msg
+                                    ("你的考试有：\n" + get_exams_msg(exams))
+                                    if exams
                                     else "暂无考试"
                                 )
                                 await nwpu.finish(exams_msg)
@@ -316,8 +320,8 @@ async def nwpu_handel_function(
                             or msg == "全部考试信息"
                         ):
                             await nwpu.send(f"正在获取全部考试信息，请等待")
-                            exams_msg = await nwpu_query_class.get_exams(True)
-                            if exams_msg:
+                            exams = await nwpu_query_class.get_exams(True)
+                            if exams:
                                 await send_forward_msg(
                                     bot,
                                     event,
@@ -325,7 +329,7 @@ async def nwpu_handel_function(
                                     str(event.self_id),
                                     [
                                         MessageSegment.text(
-                                            "你的全部考试有：\n" + exams_msg
+                                            "你的全部考试有：\n" + get_exams_msg(exams)
                                         )
                                     ],
                                 )
@@ -493,13 +497,17 @@ async def nwpu_handel_function(
                                 student_assoc = (
                                     student_assoc.extract_plain_text().strip()
                                 )
+                                if student_assoc in str(student_assoc_all) and len(student_assoc) == 6 and student_assoc.isdigit():
+                                    nwpu_query_class.student_assoc = student_assoc
+                                else:
+                                    await nwpu.send("未匹配到该身份，已随机绑定一个身份，可使用 翱翔切换 更换身份")
                                 with open(
                                     nwpu_query_class.info_file_path,
                                     "r",
                                     encoding="utf-8",
                                 ) as f:
                                     info = json.load(f)
-                                info["student_assoc"] = student_assoc
+                                info["student_assoc"] = nwpu_query_class.student_assoc
                                 with open(
                                     nwpu_query_class.info_file_path,
                                     "w",
@@ -548,10 +556,10 @@ async def nwpu_handel_function(
                                 "获取考试信息中...\n"
                                 "-------------------"
                             )
-                            exams_msg = await nwpu_query_class.get_exams(False)
+                            exams = await nwpu_query_class.get_exams(False)
                             exams_msg = (
-                                ("你的考试有：\n" + exams_msg)
-                                if exams_msg
+                                ("你的考试有：\n" + get_exams_msg(exams))
+                                if exams
                                 else "暂无考试"
                             )
                             await nwpu.finish(exams_msg)
@@ -732,7 +740,7 @@ async def _(bot: Bot, event: Event, args: Message = CommandArg()):
             elif msg == "解绑":
                 if electric_information:
                     info = json.loads(info_file_path.read_text(encoding="utf-8"))
-                    info["electric_information"] = {}
+                    info.pop("electric_warning", None)
                     info_file_path.write_text(
                         json.dumps(info, indent=4, ensure_ascii=False),
                         encoding="utf-8"

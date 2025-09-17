@@ -51,6 +51,7 @@ if __name__ != "__main__":
         write_to_excel,
         fromat_excel,
         generate_grades_to_msg,
+        get_exams_msg
     )
     from .jwxt.get_new_cookie_Fkjfy9yPdPQuP import get_new_cookie_Fkjfy9yPdPQuP
     from .draw_course_schedule_pic import (
@@ -59,7 +60,7 @@ if __name__ != "__main__":
     )
 else:
     from jwxt.get_new_cookie_Fkjfy9yPdPQuP import get_new_cookie_Fkjfy9yPdPQuP
-    from utils import generate_grades_to_msg
+    from utils import generate_grades_to_msg, get_exams_msg
     from draw_course_schedule_pic import (
         check_if_course_schedule_only_one,
         draw_course_schedule_pic,
@@ -521,7 +522,7 @@ class NwpuQuery:
             info["exams"] = exams
             with open(self.info_file_path, "w", encoding="utf-8") as f:
                 json.dump(info, f, indent=4, ensure_ascii=False)
-        return exams_msg
+        return exams
 
     # 获取课表信息
     async def get_course_table(self):
@@ -560,8 +561,8 @@ async def main():
         logger.info(f"成绩信息: {generate_grades_to_msg(grades)}")
         rank_msg = await nwpu_query_class.get_rank(False)
         logger.info(f"排名信息: {rank_msg}")
-        exams_msg = await nwpu_query_class.get_exams(True)
-        logger.info(f"考试信息: {exams_msg}")
+        exams = await nwpu_query_class.get_exams(True)
+        logger.info(f"考试信息: {get_exams_msg(exams)}")
         course_table_str = await nwpu_query_class.get_course_table()
         logger.info(f"课表信息: {course_table_str}")
         course_schedule_pic_bytes = await draw_course_schedule_pic(

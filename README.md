@@ -121,7 +121,6 @@ npu_end_check_hour=22
 |   npu_check_time    | int  | 每多少分钟检测一次成绩 |
 |   npu_electric_check_time    | int  | 每多少分钟检测一次电费 |
 | npu_if_check_grades | bool |      是否检测成绩      |
-|  npu_if_check_rank  | bool |      是否检测排名      |
 | npu_if_check_exams  | bool |     是否检测新考试     |
 | npu_if_check_when_connect  | bool |     当connect的是否执行一次检测     |
 | npu_begin_check_hour | int | 起始检测时间，在x点之前不会检测 |

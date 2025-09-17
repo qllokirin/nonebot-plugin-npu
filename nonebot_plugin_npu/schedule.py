@@ -41,10 +41,16 @@ async def disconnect():
     global if_connected
     if_connected = False
     logger.info("bot失联，关闭定时任务")
-    scheduler.pause_job("check_power")
-    scheduler.pause_job("check_new_info")
-    scheduler.pause_job("check_course_schedule")
-    scheduler.pause_job("check_new_lesson_begin_tomorrow")
+    job_ids = [
+        "check_power",
+        "check_new_info",
+        "check_course_schedule",
+        "check_new_lesson_begin_tomorrow"
+    ]
+    for job_id in job_ids:
+        if scheduler.get_job(job_id) is not None:
+            scheduler.pause_job(job_id)
+
 
 
 @driver.on_bot_connect
@@ -59,14 +65,16 @@ async def connect():
     scheduler.resume_job("check_new_lesson_begin_tomorrow")
     if global_config.npu_if_check_when_connect:
         # await scheduler.get_job('check_power').func()
-        # await scheduler.get_job('check_new_info').func()
-        await scheduler.get_job("check_course_schedule").func()
+        await scheduler.get_job('check_new_info').func()
+        # await scheduler.get_job("check_course_schedule").func()
         # await scheduler.get_job('check_new_lesson_begin_tomorrow').func()
 
 
 async def check_grades_and_ranks_and_exams(qq, bot):
-    nwpu_query_class_sched = NwpuQuery()
     try:
+        folder_path = Path(__file__).parent / "data"
+        info_file_path = folder_path / f"{qq}.json"
+        nwpu_query_class_sched = NwpuQuery(folder_path, info_file_path)
         # 留2分钟空闲时间
         sleep_time = random.uniform(
             0,
@@ -81,126 +89,75 @@ async def check_grades_and_ranks_and_exams(qq, bot):
         ranks_change = []
         exams_change = []
 
-        folder_path = os.path.join(os.path.dirname(__file__), "data", qq)
-        cookies_path = os.path.join(folder_path, "cookies.txt")
         if if_connected:
-            if await nwpu_query_class_sched.use_recent_cookies_login(cookies_path):
-                if os.path.isfile(os.path.join(folder_path, "info.json")):
-                    with open(
-                        (os.path.join(folder_path, "info.json")), "r", encoding="utf-8"
-                    ) as f:
-                        nwpu_query_class_sched.student_assoc = json.loads(f.read())[
-                            "student_assoc"
-                        ]
-                else:
-                    if not await nwpu_query_class_sched.get_student_assoc(folder_path):
-                        logger.error(f"{qq}的获取信息失败")
-                        raise Exception("定时任务{qq}的获取信息失败")
+            if await nwpu_query_class_sched.use_recent_cookies_login():
                 # 先检测成绩变化
                 if global_config.npu_if_check_grades:
-                    if os.path.exists(os.path.join(folder_path, "grades.json")):
-                        with open(
-                            (os.path.join(folder_path, "grades.json")),
-                            "r",
-                            encoding="utf-8",
-                        ) as f:
-                            grades_old = json.loads(f.read())
-                        _, grades = await nwpu_query_class_sched.get_grades(folder_path)
+                    if "grades" in nwpu_query_class_sched.info:
+                        grades_old = nwpu_query_class_sched.info.get("grades", [])
+                        grades = await nwpu_query_class_sched.get_grades(False)
                         new_grades = (
                             [grade for grade in grades if grade not in grades_old]
-                            if grades
+                            if grades and grades_old != []
                             else []
                         )
                         if new_grades:
-                            pic_path = os.path.join(folder_path, "grades.jpg")
-                            await generate_img_from_grades(new_grades, folder_path)
-                            grades_change = [
-                                qq,
-                                pic_path,
-                                generate_grades_to_msg(new_grades),
-                            ]
+                            grades_img_bytes = await generate_img_from_grades(
+                                new_grades
+                            )
+                            grades_msg = generate_grades_to_msg(new_grades)
                             logger.info(f"{qq}出新成绩啦")
+                            await bot.send_private_msg(
+                                user_id=int(qq), message=f"出新成绩啦！\n{grades_msg}"
+                            )
+                            await bot.send_private_msg(
+                                user_id=int(qq), message=MessageSegment.image(grades_img_bytes)
+                            )
+                            logger.info(f"{qq}的新成绩已推送\n{grades_msg}")
                     else:
                         await nwpu_query_class_sched.get_grades(folder_path)
-                if grades_change:
-                    qq, pic_path, grades_msg = grades_change
-                    await bot.send_private_msg(
-                        user_id=int(qq), message=f"出新成绩啦！\n{grades_msg}"
-                    )
-                    await bot.send_private_msg(
-                        user_id=int(qq), message=MessageSegment.image(Path(pic_path))
-                    )
-                    logger.info(f"{qq}的新成绩已推送\n{grades_msg}")
-
                 # 检测rank的变化
-                if global_config.npu_if_check_rank:
-                    if os.path.exists(os.path.join(folder_path, "rank.txt")):
-                        with open(
-                            (os.path.join(folder_path, "rank.txt")),
-                            "r",
-                            encoding="utf-8",
-                        ) as f:
-                            rank_old = f.read()
-                        rank_msg, rank = await nwpu_query_class_sched.get_rank(
-                            folder_path
-                        )
-                        if str(rank_old) != str(rank):
-                            ranks_change = [qq, rank_old, rank, rank_msg]
-                            logger.info(f"{qq}的rank变化啦")
-                    else:
-                        await nwpu_query_class_sched.get_rank(folder_path)
-                if ranks_change:
-                    qq, rank_old, rank, rank_msg = ranks_change
-                    await bot.send_private_msg(
-                        user_id=int(qq),
-                        message=f"你的rank发生了变化,{rank_old}->{rank}\n{rank_msg}",
-                    )
-                    logger.info(f"{qq}的新排名已推送\n{rank_msg}")
-
+                # 已陨落
+                
                 # 检测考试变化
                 if global_config.npu_if_check_exams:
-                    if os.path.exists(os.path.join(folder_path, "exams.json")):
-                        with open(
-                            (os.path.join(folder_path, "exams.json")),
-                            "r",
-                            encoding="utf-8",
-                        ) as f:
-                            exams_old = json.loads(f.read())
-                        exams_msg, exams = await nwpu_query_class_sched.get_exams(
+                    if "exams" in nwpu_query_class_sched.info:
+                        exams_old = nwpu_query_class_sched.info.get("exams", [])
+                        exams = await nwpu_query_class_sched.get_exams(
                             folder_path
                         )
                         new_exams = [exam for exam in exams if exam not in exams_old]
                         if new_exams:
-                            exams_change = [qq, new_exams, exams_msg]
                             logger.info(f"{qq}出新考试啦")
+                            new_courses = [new_exam["course"] for new_exam in new_exams]
+                            new_course_msg = ""
+                            for new_course in new_courses:
+                                new_course_msg += new_course + "\n"
+                            new_course_msg = new_course_msg[:-1]
+                            await bot.send_private_msg(
+                                user_id=int(qq), message=f"你有新的考试有：\n" + new_course_msg
+                            )
+                            await bot.send_private_msg(
+                                user_id=int(qq), message=f"你的全部未结束考试有：\n" + exams_msg
+                            )
+                            logger.info(f"{qq}的新考试已推送\n{new_course_msg}")
                     else:
                         await nwpu_query_class_sched.get_exams(folder_path)
-                if exams_change:
-                    qq, new_exams, exams_msg = exams_change
-                    new_courses = [new_exam["course"] for new_exam in new_exams]
-                    new_course_msg = ""
-                    for new_course in new_courses:
-                        new_course_msg += new_course + "\n"
-                    new_course_msg = new_course_msg[:-1]
-                    await bot.send_private_msg(
-                        user_id=int(qq), message=f"你有新的考试有：\n" + new_course_msg
-                    )
-                    await bot.send_private_msg(
-                        user_id=int(qq), message=f"你的全部未结束考试有：\n" + exams_msg
-                    )
-                    logger.info(f"{qq}的新考试已推送\n{new_course_msg}")
             else:
-                if os.path.isfile(cookies_path):
-                    logger.error(f"{qq}的cookies失效了,删除该文件夹")
-                    for file_name in os.listdir(folder_path):
-                        file_path = os.path.join(folder_path, file_name)
-                        if os.path.isfile(file_path) and file_name != "electric.json":
-                            os.remove(file_path)
-                    await bot.send_private_msg(
-                        user_id=int(qq),
-                        message=f"你的登陆信息已失效，请输入 翱翔 重新登陆",
+                logger.error(f"{qq}的cookies失效了,删除该信息")
+                if "electric_information" in nwpu_query_class_sched.info:
+                    info = {"electric_information": nwpu_query_class_sched.info["electric_information"]}
+                    info_file_path.write_text(
+                        json.dumps(info, indent=4, ensure_ascii=False),
+                        encoding="utf-8"
                     )
-                    logger.info(f"{qq}登录信息过期已推送")
+                else:
+                    info_file_path.unlink(missing_ok=True)
+                await bot.send_private_msg(
+                    user_id=int(qq),
+                    message=f"你的登陆信息已失效，请输入 翱翔 重新登陆",
+                )
+                logger.info(f"{qq}登录信息过期已推送")
         else:
             logger.info("bot失联，终止更新")
         await nwpu_query_class_sched.close_client()
@@ -257,12 +214,12 @@ async def check_grades_and_ranks_and_exams_scheduled():
         ):
             # 获取全部已登陆的QQ号
             qq_all = []
-            data_folder_path = os.path.join(os.path.dirname(__file__), "data")
-            if os.path.exists(data_folder_path):
+            data_folder_path = Path(__file__).parent / "data"
+            if data_folder_path.exists():
                 qq_all = [
-                    f
-                    for f in os.listdir(data_folder_path)
-                    if os.path.isdir(os.path.join(data_folder_path, f))
+                    f.stem
+                    for f in data_folder_path.glob("*.json")
+                    if f.is_file()
                 ]
                 if qq_all:
                     logger.info(
@@ -296,21 +253,16 @@ async def check_grades_and_ranks_and_exams_scheduled():
 
 async def check_new_lesson_begin_tomorrow(qq, bot):
     try:
+        folder_path = Path(__file__).parent / "data"
+        info_file_path = folder_path / f"{qq}.json"
         sleep_time = random.uniform(0, 60 * 60)
         await asyncio.sleep(sleep_time)
-        for file in glob.glob(
-            os.path.join(
-                os.path.join(os.path.dirname(__file__), "data", qq), "*-*.html"
+        data = json.loads(json.loads(info_file_path.read_text(encoding="utf-8")).get("course_table", ""))
+        if msg := if_begin_lesson_day_is_tomorrow(data):
+            await bot.send_private_msg(
+                user_id=int(qq), message=f"明天有新课程开课，别忘记啦\n\n{msg}"
             )
-        ):
-            if os.path.basename(file).endswith(("秋.html", "春.html", "夏.html")):
-                with open(file, "r", encoding="utf-8") as f:
-                    data = json.loads(f.read())
-                if msg := if_begin_lesson_day_is_tomorrow(data):
-                    await bot.send_private_msg(
-                        user_id=int(qq), message=f"明天有新课程开课，别忘记啦\n\n{msg}"
-                    )
-                    logger.info(f"{qq}明天有新课程\n{msg}\n已推送")
+            logger.info(f"{qq}明天有新课程\n{msg}\n已推送")
     except Exception as e:
         error_trace = traceback.format_exc()
         logger.error(f"定时任务出现错误{e!r}\n堆栈信息:\n{error_trace}")
@@ -337,12 +289,12 @@ async def check_new_lesson_begin_tomorrow_scheduled():
     try:
         # 获取全部已登陆的QQ号
         qq_all = []
-        data_folder_path = os.path.join(os.path.dirname(__file__), "data")
-        if os.path.exists(data_folder_path):
+        data_folder_path = Path(__file__).parent / "data"
+        if data_folder_path.exists():
             qq_all = [
-                f
-                for f in os.listdir(data_folder_path)
-                if os.path.isdir(os.path.join(data_folder_path, f))
+                f.stem
+                for f in data_folder_path.glob("*.json")
+                if f.is_file()
             ]
             if qq_all:
                 logger.info(f"已登录的全部QQ号：{qq_all} 开始检查明天是否有新开课程")
@@ -373,41 +325,55 @@ async def check_new_lesson_begin_tomorrow_scheduled():
 async def check_course_schedule(qq, bot):
     nwpu_query_class_sched = NwpuQuery()
     try:
+        folder_path = Path(__file__).parent / "data"
+        info_file_path = folder_path / f"{qq}.json"
+        course_table_str_old = json.loads(info_file_path.read_text(encoding="utf-8")).get("course_table", "")
         sleep_time = random.uniform(0, 60 * 60 * 2)
         await asyncio.sleep(sleep_time)
-        folder_path = os.path.join(os.path.dirname(__file__), "data", qq)
-        cookies_path = os.path.join(folder_path, "cookies.txt")
-        if if_connected:
-            if await nwpu_query_class_sched.use_recent_cookies_login(cookies_path):
-                if os.path.isfile(os.path.join(folder_path, "info.json")):
-                    with open(
-                        (os.path.join(folder_path, "info.json")), "r", encoding="utf-8"
-                    ) as f:
-                        nwpu_query_class_sched.student_assoc = json.loads(f.read())[
-                            "student_assoc"
+        if if_connected and global_config.npu_if_check_course_schedule:
+            if await nwpu_query_class_sched.use_recent_cookies_login():
+                if "course_table" in nwpu_query_class_sched.info:
+                    lessons_data_old, _ = get_all_lessons(course_table_str_old)
+                    course_table_str_new = await nwpu_query_class_sched.get_course_table(folder_path)
+                    lessons_data, _ = get_all_lessons(course_table_str_new)
+                    lessons_data_new = (
+                        [
+                            course
+                            for course in lessons_data
+                            if course not in lessons_data_old
                         ]
-                else:
-                    if not await nwpu_query_class_sched.get_student_assoc(folder_path):
-                        logger.error(f"{qq}的获取信息失败")
-                        raise Exception("定时任务{qq}的获取信息失败")
-                if global_config.npu_if_check_course_schedule:
-                    if await check_if_course_schedule_only_one(folder_path):
-                        lessons_data_old, _ = get_all_lessons(folder_path)
-                        await nwpu_query_class_sched.get_course_table(folder_path)
-                        lessons_data, _ = get_all_lessons(folder_path)
-                        lessons_data_new = (
-                            [
-                                course
-                                for course in lessons_data
-                                if course not in lessons_data_old
+                        if lessons_data
+                        else []
+                    )
+                    if lessons_data_new:
+                        logger.info(f"{qq}课表有变化啦")
+                        msg = "有课表变动/新课程，变动后课程信息/新课程信息如下，需自行对比查看\n（也可能是机器人误报）\n\n"
+                        for course in lessons_data_new:
+                            msg += (
+                                f"名称：{course['courseName']}\n"
+                                f"周次：{course['weekIndexes']}\n"
+                                f"地点：{course['room']}\n"
+                                f"星期：{course['weekday']}\n"
+                                f"教师：{course['teachers']}\n"
+                                f"开始节数：{course['startUnit']}\n"
+                                f"结束节数：{course['endUnit']}\n\n"
+                            )
+                        logger.info(msg)
+                        if global_config.npu_if_check_course_schedule_send:
+                            await bot.send_private_msg(
+                                user_id=int(qq), message=msg[:-2]
+                            )
+                            lessons_data_old_dict = {
+                                course["courseName"]: course
+                                for course in lessons_data_old
+                            }
+                            lessons_data_old_not_new = [
+                                lessons_data_old_dict.get(course["courseName"])
+                                for course in lessons_data_new
+                                if lessons_data_old_dict.get(course["courseName"])
                             ]
-                            if lessons_data
-                            else []
-                        )
-                        if lessons_data_new:
-                            logger.info(f"{qq}课表有变化啦")
-                            msg = "有课表变动/新课程，变动后课程信息/新课程信息如下，需自行对比查看\n（也可能是机器人误报）\n\n"
-                            for course in lessons_data_new:
+                            msg = ""
+                            for course in lessons_data_old_not_new:
                                 msg += (
                                     f"名称：{course['courseName']}\n"
                                     f"周次：{course['weekIndexes']}\n"
@@ -417,73 +383,51 @@ async def check_course_schedule(qq, bot):
                                     f"开始节数：{course['startUnit']}\n"
                                     f"结束节数：{course['endUnit']}\n\n"
                                 )
-                            logger.info(msg)
-                            if global_config.npu_if_check_course_schedule_send:
-                                await bot.send_private_msg(
-                                    user_id=int(qq), message=msg[:-2]
+                            if msg:
+                                await bot.send_private_forward_msg(
+                                    user_id=int(qq),
+                                    messages=[
+                                        {
+                                            "type": "node",
+                                            "data": {
+                                                "name": "呱唧",
+                                                "uin": bot.self_id,
+                                                "content": "下面是同课程名的旧课程信息\n无同课程名的旧课程信息的，大概率是新课程",
+                                            },
+                                        },
+                                        {
+                                            "type": "node",
+                                            "data": {
+                                                "name": "呱唧",
+                                                "uin": bot.self_id,
+                                                "content": msg[:-2],
+                                            },
+                                        },
+                                    ],
                                 )
-                                lessons_data_old_dict = {
-                                    course["courseName"]: course
-                                    for course in lessons_data_old
-                                }
-                                lessons_data_old_not_new = [
-                                    lessons_data_old_dict.get(course["courseName"])
-                                    for course in lessons_data_new
-                                    if lessons_data_old_dict.get(course["courseName"])
-                                ]
-                                msg = ""
-                                for course in lessons_data_old_not_new:
-                                    msg += (
-                                        f"名称：{course['courseName']}\n"
-                                        f"周次：{course['weekIndexes']}\n"
-                                        f"地点：{course['room']}\n"
-                                        f"星期：{course['weekday']}\n"
-                                        f"教师：{course['teachers']}\n"
-                                        f"开始节数：{course['startUnit']}\n"
-                                        f"结束节数：{course['endUnit']}\n\n"
-                                    )
-                                if msg:
-                                    await bot.send_private_forward_msg(
-                                        user_id=int(qq),
-                                        messages=[
-                                            {
-                                                "type": "node",
-                                                "data": {
-                                                    "name": "呱唧",
-                                                    "uin": bot.self_id,
-                                                    "content": "下面是同课程名的旧课程信息\n无同课程名的旧课程信息的，大概率是新课程",
-                                                },
-                                            },
-                                            {
-                                                "type": "node",
-                                                "data": {
-                                                    "name": "呱唧",
-                                                    "uin": bot.self_id,
-                                                    "content": msg[:-2],
-                                                },
-                                            },
-                                        ],
-                                    )
-                                else:
-                                    await bot.send_private_msg(
-                                        user_id=int(qq),
-                                        message="无同课程名的旧课程信息，大概率是新课程",
-                                    )
-                                logger.info(f"{qq}的课表变动已推送")
-                    else:
-                        await nwpu_query_class_sched.get_course_table(folder_path)
+                            else:
+                                await bot.send_private_msg(
+                                    user_id=int(qq),
+                                    message="无同课程名的旧课程信息，大概率是新课程",
+                                )
+                            logger.info(f"{qq}的课表变动已推送")
+                else:
+                    await nwpu_query_class_sched.get_course_table()
             else:
-                if os.path.isfile(cookies_path):
-                    logger.error(f"{qq}的cookies失效了,删除该文件夹")
-                    for file_name in os.listdir(folder_path):
-                        file_path = os.path.join(folder_path, file_name)
-                        if os.path.isfile(file_path) and file_name != "electric.json":
-                            os.remove(file_path)
-                    await bot.send_private_msg(
-                        user_id=int(qq),
-                        message=f"你的登陆信息已失效，请输入 翱翔 重新登陆",
+                logger.error(f"{qq}的cookies失效了,删除该信息")
+                if "electric_information" in nwpu_query_class_sched.info:
+                    info = {"electric_information": nwpu_query_class_sched.info["electric_information"]}
+                    info_file_path.write_text(
+                        json.dumps(info, indent=4, ensure_ascii=False),
+                        encoding="utf-8"
                     )
-                    logger.info(f"{qq}登录信息过期已推送")
+                else:
+                    info_file_path.unlink(missing_ok=True)
+                await bot.send_private_msg(
+                    user_id=int(qq),
+                    message=f"你的登陆信息已失效，请输入 翱翔 重新登陆",
+                )
+                logger.info(f"{qq}登录信息过期已推送")
         else:
             logger.info("bot失联，终止更新")
         await nwpu_query_class_sched.close_client()
@@ -531,12 +475,12 @@ async def check_course_schedule_scheduled():
     try:
         # 获取全部已登陆的QQ号
         qq_all = []
-        data_folder_path = os.path.join(os.path.dirname(__file__), "data")
-        if os.path.exists(data_folder_path):
+        data_folder_path = Path(__file__).parent / "data"
+        if data_folder_path.exists():
             qq_all = [
-                f
-                for f in os.listdir(data_folder_path)
-                if os.path.isdir(os.path.join(data_folder_path, f))
+                f.stem
+                for f in data_folder_path.glob("*.json")
+                if f.is_file()
             ]
             if qq_all:
                 logger.info(f"已登录的全部QQ号：{qq_all} 开始检查是否有课表变动")
@@ -563,24 +507,25 @@ async def check_course_schedule_scheduled():
 
 async def check_electric(qq, bot):
     try:
+        folder_path = Path(__file__).parent / "data"
+        info_file_path = folder_path / f"{qq}.json"
+        electric_information = json.loads(info_file_path.read_text(encoding="utf-8")).get("electric_information", {})
+        if not electric_information:
+            return
         sleep_time = random.uniform(0, global_config.npu_electric_check_time * 60)
         await asyncio.sleep(sleep_time)
-        electric_path = os.path.join(
-            os.path.dirname(__file__), "data", qq, "electric.json"
-        )
-        with open(electric_path, "r", encoding="utf-8") as f:
-            electric_information = json.loads(f.read())
         electric_left, information_all = await get_electric_left(
             electric_information["campus"],
             electric_information["building"],
             electric_information["room"],
         )
         logger.info(f"{qq}电费还剩{electric_left}")
-        if electric_left < 15:
-            logger.info(f"{qq}电费小于15，推送消息")
+        min_electric_left = 20
+        if electric_left < min_electric_left:
+            logger.info(f"{qq}电费小于{min_electric_left}，推送消息")
             await bot.send_private_msg(
                 user_id=int(qq),
-                message=f"{information_all}，电费不足15，当前电费{electric_left}，请及时缴纳\n若不想收到提醒消息，可发送 翱翔电费解绑 进行解除绑定",
+                message=f"{information_all}，电费不足{min_electric_left}，当前电费{electric_left}，请及时缴纳\n若不想收到提醒消息，可发送 翱翔电费解绑 进行解除绑定",
             )
     except ActionFailed as e:
         logger.error(e.__dict__["info"]["message"])
@@ -614,14 +559,14 @@ async def check_electric(qq, bot):
 async def check_electric_scheduled():
     bot: Bot = get_bot()
     try:
-        logger.info("检查宿舍电费")
+        # 获取全部已登陆的QQ号
         qq_all = []
-        data_folder_path = os.path.join(os.path.dirname(__file__), "data")
-        if os.path.exists(data_folder_path):
+        data_folder_path = Path(__file__).parent / "data"
+        if data_folder_path.exists():
             qq_all = [
-                f
-                for f in os.listdir(data_folder_path)
-                if os.path.exists(os.path.join(data_folder_path, f, "electric.json"))
+                f.stem
+                for f in data_folder_path.glob("*.json")
+                if f.is_file()
             ]
             if qq_all:
                 logger.info(f"已绑定宿舍的全部QQ号：{qq_all}")

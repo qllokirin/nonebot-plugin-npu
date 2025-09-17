@@ -13,4 +13,4 @@ __plugin_meta__ = PluginMetadata(
 
 from . import command
 
-# from . import schedule
+from . import schedule
