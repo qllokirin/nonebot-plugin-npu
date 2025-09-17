@@ -16,6 +16,7 @@ from .utils import (
     generate_img_from_grades,
     generate_grades_to_msg,
     if_begin_lesson_day_is_tomorrow,
+    get_exams_msg
 )
 
 driver = get_driver()
@@ -64,10 +65,10 @@ async def connect():
     scheduler.resume_job("check_course_schedule")
     scheduler.resume_job("check_new_lesson_begin_tomorrow")
     if global_config.npu_if_check_when_connect:
-        # await scheduler.get_job('check_power').func()
+        await scheduler.get_job('check_power').func()
         await scheduler.get_job('check_new_info').func()
-        # await scheduler.get_job("check_course_schedule").func()
-        # await scheduler.get_job('check_new_lesson_begin_tomorrow').func()
+        await scheduler.get_job("check_course_schedule").func()
+        await scheduler.get_job('check_new_lesson_begin_tomorrow').func()
 
 
 async def check_grades_and_ranks_and_exams(qq, bot):
@@ -138,7 +139,7 @@ async def check_grades_and_ranks_and_exams(qq, bot):
                                 user_id=int(qq), message=f"你有新的考试有：\n" + new_course_msg
                             )
                             await bot.send_private_msg(
-                                user_id=int(qq), message=f"你的全部未结束考试有：\n" + exams_msg
+                                user_id=int(qq), message=f"你的全部未结束考试有：\n" + get_exams_msg(exams)
                             )
                             logger.info(f"{qq}的新考试已推送\n{new_course_msg}")
                     else:
