@@ -44,6 +44,14 @@ nonebot-plugin-npu，翱翔门户成绩监控插件，能获取成绩、排名�
 
 # 🔔 安装
 
+> 瑞数6通过补环境模拟运行js获得cookie，故需要安装nodejs环境（execjs有问题），本人实测node12无法成功，node22.19.0成功
+>
+> ```
+> curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+> sudo apt-get install -y nodejs
+> # 若使用过apt安装过node12请先卸载 sudo apt remove nodejs libnode72 再安装新版本
+> ```
+
 <details>
 <summary>法一：nb plugin安装方法[推荐]</summary>
 
