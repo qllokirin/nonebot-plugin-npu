@@ -216,6 +216,99 @@ async def nwpu_handel_function(
                         elif msg == "全部排名":
                             rank_msg = await nwpu_query_class.get_rank(True)
                             await nwpu.finish(rank_msg)
+                        elif msg == "切换身份" or msg == "切换" or msg == "刷新" or msg == "刷新身份":
+                            if_get_student_assoc_success, student_assoc_all = (
+                                await nwpu_query_class.get_student_assoc()
+                            )
+                            if if_get_student_assoc_success:
+                                # 有多个身份号需要选择
+                                if student_assoc_all:
+                                    logger.info(f"")
+                                    result = []
+                                    for sid, info in student_assoc_all.items():
+                                        result.append(f"\n身份号 {sid}:\n{info}\n")
+                                    await nwpu.send(
+                                        f"查询到多个身份:\n\n{''.join(result)}"
+                                    )
+                                    if (
+                                        student_assoc := await prompt(
+                                            "请输入要绑定的身份号（六位纯数字）"
+                                        )
+                                    ) is None:
+                                        await nwpu.finish("已超时，本次登陆结束")
+                                    student_assoc = (
+                                        student_assoc.extract_plain_text().strip()
+                                    )
+                                    with open(
+                                        nwpu_query_class.info_file_path,
+                                        "r",
+                                        encoding="utf-8",
+                                    ) as f:
+                                        info = json.load(f)
+                                    new_info = {}
+                                    new_info["cookies"] = info["cookies"]
+                                    new_info["student_assoc"] = student_assoc
+                                    with open(
+                                        nwpu_query_class.info_file_path,
+                                        "w",
+                                        encoding="utf-8",
+                                    ) as f:
+                                        json.dump(new_info, f, indent=4, ensure_ascii=False)
+                                else:
+                                    await nwpu.finish("没有可切换的身份")
+
+                                await nwpu.send(
+                                    "----------------\n"
+                                    "获取排名中...\n"
+                                    "----------------"
+                                )
+                                rank_msg = await nwpu_query_class.get_rank(False)
+                                await nwpu.send(rank_msg)
+                                await nwpu.send(
+                                    "----------------\n"
+                                    "获取成绩中...\n"
+                                    "----------------"
+                                )
+                                grades = await nwpu_query_class.get_grades(
+                                    if_only_last_sem=False
+                                )
+                                if grades:
+                                    grades_img_bytes = await generate_img_from_grades(
+                                        grades
+                                    )
+                                    await nwpu.send(MessageSegment.image(grades_img_bytes))
+                                elif grades is None:
+                                    await nwpu.send("成绩获取失败，请稍后再试")
+                                else:
+                                    await nwpu.send("无成绩喵")
+                                await nwpu.send(
+                                    "----------------\n"
+                                    "获取课表中...\n"
+                                    "----------------"
+                                )
+                                course_schedule_pic_bytes = await draw_course_schedule_pic(
+                                    folder_path, await nwpu_query_class.get_course_table()
+                                )
+                                await nwpu.send(
+                                    MessageSegment.image(course_schedule_pic_bytes)
+                                )
+
+                                await nwpu.send(
+                                    "-------------------\n"
+                                    "获取考试信息中...\n"
+                                    "-------------------"
+                                )
+                                exams_msg = await nwpu_query_class.get_exams(False)
+                                exams_msg = (
+                                    ("你的考试有：\n" + exams_msg)
+                                    if exams_msg
+                                    else "暂无考试"
+                                )
+                                await nwpu.finish(exams_msg)
+                            else:
+                                await nwpu.finish(
+                                    "获取身份id失败，请使用 翱翔刷新id 手动获取"
+                                )
                         elif (
                             msg == "全部排考"
                             or msg == "全部考试"
@@ -254,7 +347,7 @@ async def nwpu_handel_function(
                                     await bot.call_api(
                                         "upload_group_file",
                                         group_id=event.group_id,
-                                        file=course_table_file,
+                                        file=str(course_table_file),
                                         name=course_table_name,
                                     )
                                     await nwpu.send("请在群文件中查看文件")
@@ -262,7 +355,7 @@ async def nwpu_handel_function(
                                     await bot.call_api(
                                         "upload_private_file",
                                         user_id=event.user_id,
-                                        file=course_table_file,
+                                        file=str(course_table_file),
                                         name=course_table_name,
                                     )
                                 await nwpu.send(
@@ -464,7 +557,7 @@ async def nwpu_handel_function(
                             await nwpu.finish(exams_msg)
                         else:
                             await nwpu.finish(
-                                "获取身份id失败，请使用 翱翔刷新id 手动获取"
+                                "获取身份id失败，请使用 翱翔刷新 手动获取"
                             )
                     elif status == -1:
                         await nwpu.send(
