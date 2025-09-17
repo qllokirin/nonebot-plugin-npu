@@ -1,4 +1,3 @@
-堂堂复活，但电费、定时暂未修复
 
 <!-- markdownlint-disable MD033 MD036 MD041 -->
 
