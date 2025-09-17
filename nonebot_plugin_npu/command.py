@@ -637,18 +637,15 @@ nwpu_electric = on_command("翱翔电费", rule=to_me(), priority=10, block=True
 @nwpu_electric.handle()
 async def _(bot: Bot, event: Event, args: Message = CommandArg()):
     try:
-        folder_path = os.path.join(
-            os.path.dirname(__file__), "data", event.get_user_id()
-        )
+        user_id = event.get_user_id()
+        folder_path = Path(__file__).parent / "data"
+        info_file_path = folder_path / f"{user_id}.json"
+        electric_information = {}
+        if info_file_path.exists():
+            electric_information = json.loads(info_file_path.read_text(encoding="utf-8")).get("electric_information", {})
         if msg := args.extract_plain_text().strip():
             if msg == "查询":
-                folder_path = os.path.join(
-                    os.path.dirname(__file__), "data", event.get_user_id()
-                )
-                electric_path = os.path.join(folder_path, "electric.json")
-                if os.path.exists(electric_path):
-                    with open(electric_path, "r", encoding="utf-8") as f:
-                        electric_information = json.loads(f.read())
+                if electric_information:
                     electric_left, information_all = await get_electric_left(
                         electric_information["campus"],
                         electric_information["building"],
@@ -667,9 +664,6 @@ async def _(bot: Bot, event: Event, args: Message = CommandArg()):
                     msg, campus_all = await get_campus()
                     if (campus_msg := await prompt(msg)) is None:
                         await nwpu_electric.finish("已超时，本次绑定结束")
-                    folder_path = os.path.join(
-                        os.path.dirname(__file__), "data", event.get_user_id()
-                    )
                     campus = campus_all[int(campus_msg.extract_plain_text().strip())][
                         "value"
                     ]
@@ -713,21 +707,21 @@ async def _(bot: Bot, event: Event, args: Message = CommandArg()):
                     if room_msg.extract_plain_text().strip() == "停止":
                         await nwpu_electric.finish("已停止，本次绑定结束")
                     room = room_all[int(room_msg.extract_plain_text().strip())]["value"]
-                    data = {"campus": campus, "building": building, "room": room}
+                    electric_information = {"campus": campus, "building": building, "room": room}
+                    info = json.loads(info_file_path.read_text(encoding="utf-8"))
+                    info["electric_information"] = electric_information
+                    info_file_path.write_text(
+                        json.dumps(info, indent=4, ensure_ascii=False),
+                        encoding="utf-8"
+                    )
                     electric_left, information_all = await get_electric_left(
                         campus, building, room
                     )
-                    with open(
-                        os.path.join(folder_path, "electric.json"),
-                        "w",
-                        encoding="utf-8",
-                    ) as f:
-                        json.dump(data, f, indent=4, ensure_ascii=False)
                     await nwpu_electric.send(
                         f"{information_all}，当前剩余电量：{electric_left}"
                     )
                     await nwpu_electric.finish(
-                        "每天12点会自动定时查询，电费小于15时会自动提示充值"
+                        "会自动定时查询，电费小于一定值时会自动提示"
                     )
                 except (ValueError, IndexError):
                     await nwpu_electric.finish(
@@ -736,12 +730,13 @@ async def _(bot: Bot, event: Event, args: Message = CommandArg()):
                 except Exception as e:
                     raise e
             elif msg == "解绑":
-                folder_path = os.path.join(
-                    os.path.dirname(__file__), "data", event.get_user_id()
-                )
-                electric_path = os.path.join(folder_path, "electric.json")
-                if os.path.exists(electric_path):
-                    os.remove(electric_path)
+                if electric_information:
+                    info = json.loads(info_file_path.read_text(encoding="utf-8"))
+                    info["electric_information"] = {}
+                    info_file_path.write_text(
+                        json.dumps(info, indent=4, ensure_ascii=False),
+                        encoding="utf-8"
+                    )
                     await nwpu_electric.finish("已解除宿舍绑定")
                 else:
                     await nwpu_electric.finish(
