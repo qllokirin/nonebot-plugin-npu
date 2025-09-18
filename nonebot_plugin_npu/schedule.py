@@ -16,7 +16,7 @@ from .utils import (
     generate_img_from_grades,
     generate_grades_to_msg,
     if_begin_lesson_day_is_tomorrow,
-    get_exams_msg
+    get_exams_msg,
 )
 
 driver = get_driver()
@@ -46,12 +46,11 @@ async def disconnect():
         "check_power",
         "check_new_info",
         "check_course_schedule",
-        "check_new_lesson_begin_tomorrow"
+        "check_new_lesson_begin_tomorrow",
     ]
     for job_id in job_ids:
         if scheduler.get_job(job_id) is not None:
             scheduler.pause_job(job_id)
-
 
 
 @driver.on_bot_connect
@@ -65,10 +64,10 @@ async def connect():
     scheduler.resume_job("check_course_schedule")
     scheduler.resume_job("check_new_lesson_begin_tomorrow")
     if global_config.npu_if_check_when_connect:
-        await scheduler.get_job('check_power').func()
-        await scheduler.get_job('check_new_info').func()
+        await scheduler.get_job("check_power").func()
+        await scheduler.get_job("check_new_info").func()
         await scheduler.get_job("check_course_schedule").func()
-        await scheduler.get_job('check_new_lesson_begin_tomorrow').func()
+        await scheduler.get_job("check_new_lesson_begin_tomorrow").func()
 
 
 async def check_grades_and_ranks_and_exams(qq, bot):
@@ -112,21 +111,20 @@ async def check_grades_and_ranks_and_exams(qq, bot):
                                 user_id=int(qq), message=f"出新成绩啦！\n{grades_msg}"
                             )
                             await bot.send_private_msg(
-                                user_id=int(qq), message=MessageSegment.image(grades_img_bytes)
+                                user_id=int(qq),
+                                message=MessageSegment.image(grades_img_bytes),
                             )
                             logger.info(f"{qq}的新成绩已推送\n{grades_msg}")
                     else:
-                        await nwpu_query_class_sched.get_grades(folder_path)
+                        await nwpu_query_class_sched.get_grades()
                 # 检测rank的变化
                 # 已陨落
-                
+
                 # 检测考试变化
                 if global_config.npu_if_check_exams:
                     if "exams" in nwpu_query_class_sched.info:
                         exams_old = nwpu_query_class_sched.info.get("exams", [])
-                        exams = await nwpu_query_class_sched.get_exams(
-                            folder_path
-                        )
+                        exams = await nwpu_query_class_sched.get_exams()
                         new_exams = [exam for exam in exams if exam not in exams_old]
                         if new_exams:
                             logger.info(f"{qq}出新考试啦")
@@ -136,21 +134,27 @@ async def check_grades_and_ranks_and_exams(qq, bot):
                                 new_course_msg += new_course + "\n"
                             new_course_msg = new_course_msg[:-1]
                             await bot.send_private_msg(
-                                user_id=int(qq), message=f"你有新的考试有：\n" + new_course_msg
+                                user_id=int(qq),
+                                message=f"你有新的考试有：\n" + new_course_msg,
                             )
                             await bot.send_private_msg(
-                                user_id=int(qq), message=f"你的全部未结束考试有：\n" + get_exams_msg(exams)
+                                user_id=int(qq),
+                                message=f"你的全部未结束考试有：\n"
+                                + get_exams_msg(exams),
                             )
                             logger.info(f"{qq}的新考试已推送\n{new_course_msg}")
                     else:
-                        await nwpu_query_class_sched.get_exams(folder_path)
+                        await nwpu_query_class_sched.get_exams()
             else:
                 logger.error(f"{qq}的cookies失效了,删除该信息")
                 if "electric_information" in nwpu_query_class_sched.info:
-                    info = {"electric_information": nwpu_query_class_sched.info["electric_information"]}
+                    info = {
+                        "electric_information": nwpu_query_class_sched.info[
+                            "electric_information"
+                        ]
+                    }
                     info_file_path.write_text(
-                        json.dumps(info, indent=4, ensure_ascii=False),
-                        encoding="utf-8"
+                        json.dumps(info, indent=4, ensure_ascii=False), encoding="utf-8"
                     )
                 else:
                     info_file_path.unlink(missing_ok=True)
@@ -169,11 +173,8 @@ async def check_grades_and_ranks_and_exams(qq, bot):
         logger.error(e.__dict__["info"]["message"])
         await nwpu_query_class_sched.close_client()
         if "发送失败，请先添加对方为好友" in e.__dict__["info"]["message"]:
-            logger.info("对方已不是好友，删除该文件夹")
-            for file_name in os.listdir(folder_path):
-                file_path = os.path.join(folder_path, file_name)
-                if os.path.isfile(file_path):
-                    os.remove(file_path)
+            logger.info("对方已不是好友，删除该文件")
+            info_file_path.unlink()
     except Exception as e:
         await nwpu_query_class_sched.close_client()
         if str(e) == "翱翔教务登录失败，状态码500":
@@ -218,9 +219,7 @@ async def check_grades_and_ranks_and_exams_scheduled():
             data_folder_path = Path(__file__).parent / "data"
             if data_folder_path.exists():
                 qq_all = [
-                    f.stem
-                    for f in data_folder_path.glob("*.json")
-                    if f.is_file()
+                    f.stem for f in data_folder_path.glob("*.json") if f.is_file()
                 ]
                 if qq_all:
                     logger.info(
@@ -258,7 +257,11 @@ async def check_new_lesson_begin_tomorrow(qq, bot):
         info_file_path = folder_path / f"{qq}.json"
         sleep_time = random.uniform(0, 60 * 60)
         await asyncio.sleep(sleep_time)
-        data = json.loads(json.loads(info_file_path.read_text(encoding="utf-8")).get("course_table", ""))
+        data = json.loads(
+            json.loads(info_file_path.read_text(encoding="utf-8")).get(
+                "course_table", ""
+            )
+        )
         if msg := if_begin_lesson_day_is_tomorrow(data):
             await bot.send_private_msg(
                 user_id=int(qq), message=f"明天有新课程开课，别忘记啦\n\n{msg}"
@@ -292,11 +295,7 @@ async def check_new_lesson_begin_tomorrow_scheduled():
         qq_all = []
         data_folder_path = Path(__file__).parent / "data"
         if data_folder_path.exists():
-            qq_all = [
-                f.stem
-                for f in data_folder_path.glob("*.json")
-                if f.is_file()
-            ]
+            qq_all = [f.stem for f in data_folder_path.glob("*.json") if f.is_file()]
             if qq_all:
                 logger.info(f"已登录的全部QQ号：{qq_all} 开始检查明天是否有新开课程")
             else:
@@ -324,18 +323,22 @@ async def check_new_lesson_begin_tomorrow_scheduled():
 
 
 async def check_course_schedule(qq, bot):
-    nwpu_query_class_sched = NwpuQuery()
     try:
         folder_path = Path(__file__).parent / "data"
         info_file_path = folder_path / f"{qq}.json"
-        course_table_str_old = json.loads(info_file_path.read_text(encoding="utf-8")).get("course_table", "")
+        nwpu_query_class_sched = NwpuQuery(folder_path, info_file_path)
+        course_table_str_old = json.loads(
+            info_file_path.read_text(encoding="utf-8")
+        ).get("course_table", "")
         sleep_time = random.uniform(0, 60 * 60 * 2)
         await asyncio.sleep(sleep_time)
         if if_connected and global_config.npu_if_check_course_schedule:
             if await nwpu_query_class_sched.use_recent_cookies_login():
                 if "course_table" in nwpu_query_class_sched.info:
                     lessons_data_old, _ = get_all_lessons(course_table_str_old)
-                    course_table_str_new = await nwpu_query_class_sched.get_course_table(folder_path)
+                    course_table_str_new = (
+                        await nwpu_query_class_sched.get_course_table()
+                    )
                     lessons_data, _ = get_all_lessons(course_table_str_new)
                     lessons_data_new = (
                         [
@@ -417,10 +420,13 @@ async def check_course_schedule(qq, bot):
             else:
                 logger.error(f"{qq}的cookies失效了,删除该信息")
                 if "electric_information" in nwpu_query_class_sched.info:
-                    info = {"electric_information": nwpu_query_class_sched.info["electric_information"]}
+                    info = {
+                        "electric_information": nwpu_query_class_sched.info[
+                            "electric_information"
+                        ]
+                    }
                     info_file_path.write_text(
-                        json.dumps(info, indent=4, ensure_ascii=False),
-                        encoding="utf-8"
+                        json.dumps(info, indent=4, ensure_ascii=False), encoding="utf-8"
                     )
                 else:
                     info_file_path.unlink(missing_ok=True)
@@ -439,11 +445,8 @@ async def check_course_schedule(qq, bot):
         logger.error(e.__dict__["info"]["message"])
         await nwpu_query_class_sched.close_client()
         if "发送失败，请先添加对方为好友" in e.__dict__["info"]["message"]:
-            logger.info("对方已不是好友，删除该文件夹")
-            for file_name in os.listdir(folder_path):
-                file_path = os.path.join(folder_path, file_name)
-                if os.path.isfile(file_path):
-                    os.remove(file_path)
+            logger.info("对方已不是好友，删除该文件")
+            info_file_path.unlink()
     except Exception as e:
         await nwpu_query_class_sched.close_client()
         if str(e) == "翱翔教务登录失败，状态码500":
@@ -478,11 +481,7 @@ async def check_course_schedule_scheduled():
         qq_all = []
         data_folder_path = Path(__file__).parent / "data"
         if data_folder_path.exists():
-            qq_all = [
-                f.stem
-                for f in data_folder_path.glob("*.json")
-                if f.is_file()
-            ]
+            qq_all = [f.stem for f in data_folder_path.glob("*.json") if f.is_file()]
             if qq_all:
                 logger.info(f"已登录的全部QQ号：{qq_all} 开始检查是否有课表变动")
             else:
@@ -510,7 +509,9 @@ async def check_electric(qq, bot):
     try:
         folder_path = Path(__file__).parent / "data"
         info_file_path = folder_path / f"{qq}.json"
-        electric_information = json.loads(info_file_path.read_text(encoding="utf-8")).get("electric_information", {})
+        electric_information = json.loads(
+            info_file_path.read_text(encoding="utf-8")
+        ).get("electric_information", {})
         if not electric_information:
             return
         sleep_time = random.uniform(0, global_config.npu_electric_check_time * 60)
@@ -530,13 +531,8 @@ async def check_electric(qq, bot):
             )
     except ActionFailed as e:
         logger.error(e.__dict__["info"]["message"])
-        folder_path = os.path.join(os.path.dirname(__file__), "data", qq)
         if "发送失败，请先添加对方为好友" in e.__dict__["info"]["message"]:
-            logger.info("对方已不是好友，删除该文件夹")
-            for file_name in os.listdir(folder_path):
-                file_path = os.path.join(folder_path, file_name)
-                if os.path.isfile(file_path):
-                    os.remove(file_path)
+            info_file_path.unlink()
     except (httpx.TimeoutException, httpx.ReadTimeout, httpx.ConnectTimeout):
         logger.error(f"{qq}的检测check_electric定时任务Timeout")
     except Exception as e:
@@ -564,11 +560,7 @@ async def check_electric_scheduled():
         qq_all = []
         data_folder_path = Path(__file__).parent / "data"
         if data_folder_path.exists():
-            qq_all = [
-                f.stem
-                for f in data_folder_path.glob("*.json")
-                if f.is_file()
-            ]
+            qq_all = [f.stem for f in data_folder_path.glob("*.json") if f.is_file()]
             if qq_all:
                 logger.info(f"已绑定宿舍的全部QQ号：{qq_all}")
             else:
