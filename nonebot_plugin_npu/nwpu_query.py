@@ -321,6 +321,25 @@ class NwpuQuery:
         soup = BeautifulSoup(response.text, "html.parser")
         blocks = soup.find_all("div", class_="student-panel-block")
         student_assoc_all = {}
+        with open(self.info_file_path, "r", encoding="utf-8") as f:
+            info = json.load(f)
+        
+        # 本科生只有一个信息
+        student_id_element_1 = soup.find('input', {'id': 'studentId'})
+        student_id_element_2 = soup.find('button', {'class': 'footer btn btn-primary'})
+        student_assoc = None
+        if student_id_element_1:
+            student_assoc = student_id_element_1['value']
+        elif student_id_element_2:
+            student_assoc = student_id_element_2['value']
+        if student_assoc:
+            self.student_assoc = student_assoc
+            info["student_assoc"] = self.student_assoc
+            with open(self.info_file_path, "w", encoding="utf-8") as f:
+                json.dump(info, f, indent=4, ensure_ascii=False)
+            student_assoc_all[student_assoc] = "只有一个身份信息"
+            return True, ""
+        # 有多个信息身份
         for block in blocks:
             student_info = ""
             dl = block.find("dl")
@@ -334,10 +353,7 @@ class NwpuQuery:
             student_info = student_info.strip()
             button = block.find("button", class_="footer btn btn-primary")
             student_assoc_all[button["value"]] = student_info
-
         if student_assoc_all:
-            with open(self.info_file_path, "r", encoding="utf-8") as f:
-                info = json.load(f)
             # 如果只有一个信息 直接选
             if len(student_assoc_all) == 1:
                 self.student_assoc = list(student_assoc_all.keys())[0]
@@ -482,7 +498,7 @@ class NwpuQuery:
     # 查询考试信息
     async def get_exams(self, is_finished_show=False):
         url = "https://jwxt.nwpu.edu.cn/student/for-std/exam-arrange"
-        response = await self.client.get(url, headers=self.headers, timeout=30)
+        response = await self.client.get(url, headers=self.headers, timeout=60)
         soup = BeautifulSoup(response.text, "html.parser")
         rows = soup.find_all("tr")
         exams = []
