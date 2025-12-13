@@ -1,6 +1,8 @@
 
 <!-- markdownlint-disable MD033 MD036 MD041 -->
 
+#接口已无法使用，暂时未维护，故归档了，后面看情况重启
+
 <div align="center">
 <a href="https://v2.nonebot.dev/store">
     <img src="./images/NoneBotPlugin.svg" width="300" alt="logo">
