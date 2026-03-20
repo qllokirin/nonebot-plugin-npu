@@ -24,8 +24,8 @@ SOFTWARE.
 初版来自https://github.com/cheanus/Automation/blob/main/GradesMonitorLinux.py
 """
 
-# 翱翔教务给参的时候老接口还活着，新接口都是用qLx64euN=，有点加密，先不逆了，用老接口吧
-
+# 翱翔教务等二级界面全部使用了瑞数加密，有点难度，故改用DrissionPage模拟浏览器操作
+from nonebot.utils import run_sync
 from nonebot import logger
 import re
 import time
@@ -35,12 +35,13 @@ import httpx
 import rsa
 import base64
 import asyncio
-from datetime import datetime
-from bs4 import BeautifulSoup
-from pathlib import Path
 import openpyxl
 import copy
 import urllib.parse
+from pathlib import Path
+from datetime import datetime
+from bs4 import BeautifulSoup
+from DrissionPage import Chromium, ChromiumOptions
 
 if __name__ != "__main__":
     from .draw_empty_classroom_pic import draw_empty_classroom_pic
@@ -115,6 +116,11 @@ class NwpuQuery:
             with open(self.info_file_path, "r", encoding="utf-8") as f:
                 data = json.loads(f.read())
                 self.info = data
+        self.co = ChromiumOptions().set_user_data_path('test').headless().auto_port()
+        self.co.set_argument('--headless=new')
+        self.co.no_imgs(True).mute(True)
+        self.co.set_argument('--no-sandbox')
+        self.co.set_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36') # 必须增加一个user-agent
 
     async def close_client(self):
         await self.client.aclose()
@@ -152,36 +158,11 @@ class NwpuQuery:
             url = "https://ecampus.nwpu.edu.cn/main.html"
             response = await self.client.get(url, headers=self.headers, timeout=10)
             if response.status_code == 200:
-                await self.login_jwxt()
-                with open(self.info_file_path, "r", encoding="utf-8") as f:
-                    info = json.load(f)
-                self.student_assoc = info.get("student_assoc", None)
                 return True
             else:
                 return False
         else:
             return False
-
-    async def login_jwxt(self):
-        url = "https://jwxt.nwpu.edu.cn/student/sso-login"
-        response = await self.client.get(url, headers=self.headers)
-        logger.debug("第一次sso-login 登陆结果")
-        logger.debug(response.status_code)
-        new_cookie_Fkjfy9yPdPQuP = await get_new_cookie_Fkjfy9yPdPQuP(
-            self.folder_path, response.text
-        )
-        if new_cookie_Fkjfy9yPdPQuP:
-            self.client.cookies.set("Fkjfy9yPdPQuP", new_cookie_Fkjfy9yPdPQuP)
-            logger.debug("Fkjfy9yPdPQuP 更新成功")
-        else:
-            logger.error("Fkjfy9yPdPQuP 更新失败")
-        url = "https://jwxt.nwpu.edu.cn/student/sso-login"
-        response = await self.client.get(url, headers=self.headers)
-        logger.debug("第二次sso-login 登陆结果")
-        logger.debug(response.status_code)
-        if response.status_code != 200:
-            raise Exception(f"翱翔教务登录失败，状态码{response.status_code}")
-        return True
 
     async def login(self, username, password, device):
         """
@@ -307,92 +288,49 @@ class NwpuQuery:
             )["idToken"]
         else:
             return 0
-        await self.login_jwxt()
         if not os.path.exists(self.folder_path):
             os.makedirs(self.folder_path)
         with open(self.info_file_path, "w", encoding="utf-8") as f:
             f.write(json.dumps(info, indent=4, ensure_ascii=False))
         return 2
 
-    # 查询student_assoc
-    async def get_student_assoc(self):
-        url = "https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet"
-        response = await self.client.get(url, headers=self.headers)
-        soup = BeautifulSoup(response.text, "html.parser")
-        blocks = soup.find_all("div", class_="student-panel-block")
-        student_assoc_all = {}
-        with open(self.info_file_path, "r", encoding="utf-8") as f:
-            info = json.load(f)
-        
-        # 本科生只有一个信息
-        student_id_element_1 = soup.find('input', {'id': 'studentId'})
-        student_id_element_2 = soup.find('button', {'class': 'footer btn btn-primary'})
-        student_assoc = None
-        if student_id_element_1:
-            student_assoc = student_id_element_1['value']
-        elif student_id_element_2:
-            student_assoc = student_id_element_2['value']
-        if student_assoc:
-            self.student_assoc = student_assoc
-            info["student_assoc"] = self.student_assoc
-            with open(self.info_file_path, "w", encoding="utf-8") as f:
-                json.dump(info, f, indent=4, ensure_ascii=False)
-            student_assoc_all[student_assoc] = "只有一个身份信息"
-            return True, ""
-        # 有多个信息身份
-        for block in blocks:
-            student_info = ""
-            dl = block.find("dl")
-            if dl:
-                dts = dl.find_all("dt")
-                dds = dl.find_all("dd")
-                for dt, dd in zip(dts, dds):
-                    key = dt.get_text(strip=True)
-                    value = dd.get_text(strip=True)
-                    student_info += f"{key}: {value}\n"
-            student_info = student_info.strip()
-            button = block.find("button", class_="footer btn btn-primary")
-            student_assoc_all[button["value"]] = student_info
-        if student_assoc_all:
-            # 如果只有一个信息 直接选
-            if len(student_assoc_all) == 1:
-                self.student_assoc = list(student_assoc_all.keys())[0]
-                info["student_assoc"] = self.student_assoc
-                with open(self.info_file_path, "w", encoding="utf-8") as f:
-                    json.dump(info, f, indent=4, ensure_ascii=False)
-                return True, ""
-            # 本科/研究生/博士 默认选一个最后的，后续可以切换
-            else:
-                self.student_assoc = list(student_assoc_all.keys())[-1]
-                info["student_assoc"] = self.student_assoc
-                with open(self.info_file_path, "w", encoding="utf-8") as f:
-                    json.dump(info, f, indent=4, ensure_ascii=False)
-                return True, student_assoc_all
-        else:
-            logger.error("get_student_assoc failed", self.folder_path)
-            return False, ""
-
     # 查询成绩
-    async def get_grades(self, if_only_last_sem=True):
-        # if_only_last_semester 仅查询最近一个学期
+    @run_sync
+    def get_grades(self, if_only_last_sem=True):
+        if_only_last_sem = False
+        browser = Chromium(self.co)
+        tab = browser.latest_tab
         try:
-            url = f"https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet/semester-index/{self.student_assoc}?"
-            response = await self.client.get(url, headers=self.headers, timeout=5)
-            semester = re.findall('<option value="(.+?)"', response.text)
-            grades = []
+            logger.debug("="*20)
+            tab.get('https://ecampus.nwpu.edu.cn')
+            logger.debug("第一次打开网站")
+            time.sleep(3)
+            tab.set.cookies(f'TGC={self.info["cookies"]["TGC"]};')
+            logger.debug("设置cookie完成")
+            tab.get('https://ecampus.nwpu.edu.cn')
+            logger.debug("第二次打开网站")
+            time.sleep(5)
+            tab.ele('翱翔教务').click()
+            logger.debug("点击翱翔教务")
+            time.sleep(5)
+            tab = browser.latest_tab
+            tab.listen.start("jwxt.nwpu.edu.cn/student/for-std/grade/sheet/info")
+            all_sections = tab.eles('@class:shortcut-item')
+            for i in all_sections:
+                if '成绩信息' in i.text:
+                    logger.debug("点击成绩信息")
+                    i.click()
+                    break
+            if info_all := tab.eles("查看详情", 2):
+                info_all[-1].click()
+                logger.debug("点击查看详情")
+            res = tab.listen.wait(timeout=20)
+            tab.listen.stop()
+            info_file_path = 'info.json'
             grades_msg = []
-            if if_only_last_sem:
-                semester = semester[:1]
-            for sem in semester:
-                url = (
-                    "https://jwxt.nwpu.edu.cn/student/for-std/grade/sheet/info/"
-                    + self.student_assoc
-                    + "?semester="
-                    + sem
-                )
-                response = await self.client.get(url, headers=self.headers2, timeout=8)
-                response = json.loads(response.text)["semesterId2studentGrades"][sem]
-                for course in response:
+            grades = []
+            for _, one_semester in (res.response.body["semesterId2studentGrades"]).items():
+                for course in one_semester:
                     name = course["course"]["nameZh"]
                     code = course["course"]["code"]
                     course_type = course["courseType"]["nameZh"]
@@ -426,17 +364,17 @@ class NwpuQuery:
             # 获取全部成绩时才保存成绩
             # 并且非空时才保存 因为偶尔会出现bug推送全部成绩 故推测是因为上一次获取的是全空
             if not if_only_last_sem and grades:
+                logger.info("成绩获取成功，保存中……")
                 with open(self.info_file_path, "r", encoding="utf-8") as f:
                     info = json.load(f)
                 info["grades"] = grades
                 with open(self.info_file_path, "w", encoding="utf-8") as f:
                     json.dump(info, f, indent=4, ensure_ascii=False)
+        except Exception as e:
+            logger.error("出现异常:", e)
+        finally:
+            tab.browser.quit()
             return grades
-        except httpx.TimeoutException:
-            logger.error(
-                f"{self.folder_path}成绩获取超时，返回None，在定时任务中会跳过，在指令获取中会返回错误信息"
-            )
-            return None
 
     async def get_rank(self, if_all_semester=False):
         url = "https://jwxt.nwpu.edu.cn/student/for-std/student-portrait"

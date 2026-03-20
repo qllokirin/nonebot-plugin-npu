@@ -1,7 +1,7 @@
 
 <!-- markdownlint-disable MD033 MD036 MD041 -->
 
-# 接口已无法使用，暂时未维护，故归档了，后面看情况重启
+# 使用DrissionPage模拟浏览器操作缓慢更新，目前只能获取成绩，其余接口缓慢修复
 
 <div align="center">
 <a href="https://v2.nonebot.dev/store">
@@ -110,7 +110,6 @@ plugins = ["nonebot-plugin-npu"]
 npu_check_time=60
 npu_electric_check_time=30
 npu_if_check_grades=true
-npu_if_check_rank=true
 npu_if_check_exams=true
 npu_if_check_when_connect=false
 npu_begin_check_hour=8

@@ -216,103 +216,6 @@ async def nwpu_handel_function(
                         elif msg == "全部排名":
                             rank_msg = await nwpu_query_class.get_rank(True)
                             await nwpu.finish(rank_msg)
-                        elif msg == "切换身份" or msg == "切换" or msg == "刷新" or msg == "刷新身份":
-                            if_get_student_assoc_success, student_assoc_all = (
-                                await nwpu_query_class.get_student_assoc()
-                            )
-                            if if_get_student_assoc_success:
-                                # 有多个身份号需要选择
-                                if student_assoc_all:
-                                    logger.info(f"")
-                                    result = []
-                                    for sid, info in student_assoc_all.items():
-                                        result.append(f"\n身份号 {sid}:\n{info}\n")
-                                    await nwpu.send(
-                                        f"查询到多个身份:\n\n{''.join(result)}"
-                                    )
-                                    if (
-                                        student_assoc := await prompt(
-                                            "请输入要绑定的身份号（六位纯数字）"
-                                        )
-                                    ) is None:
-                                        await nwpu.finish("已超时，本次登陆结束")
-                                    student_assoc = (
-                                        student_assoc.extract_plain_text().strip()
-                                    )
-                                    if student_assoc in str(student_assoc_all) and len(student_assoc) == 6 and student_assoc.isdigit():
-                                        nwpu_query_class.student_assoc = student_assoc
-                                    else:
-                                        await nwpu.send("未匹配到该身份，已随机绑定一个身份")
-                                    with open(
-                                        nwpu_query_class.info_file_path,
-                                        "r",
-                                        encoding="utf-8",
-                                    ) as f:
-                                        info = json.load(f)
-                                    new_info = {}
-                                    new_info["cookies"] = info["cookies"]
-                                    new_info["student_assoc"] = nwpu_query_class.student_assoc
-                                    with open(
-                                        nwpu_query_class.info_file_path,
-                                        "w",
-                                        encoding="utf-8",
-                                    ) as f:
-                                        json.dump(new_info, f, indent=4, ensure_ascii=False)
-                                else:
-                                    await nwpu.finish("没有可切换的身份")
-
-                                await nwpu.send(
-                                    "----------------\n"
-                                    "获取排名中...\n"
-                                    "----------------"
-                                )
-                                rank_msg = await nwpu_query_class.get_rank(False)
-                                await nwpu.send(rank_msg)
-                                await nwpu.send(
-                                    "----------------\n"
-                                    "获取成绩中...\n"
-                                    "----------------"
-                                )
-                                grades = await nwpu_query_class.get_grades(
-                                    if_only_last_sem=False
-                                )
-                                if grades:
-                                    grades_img_bytes = await generate_img_from_grades(
-                                        grades
-                                    )
-                                    await nwpu.send(MessageSegment.image(grades_img_bytes))
-                                elif grades is None:
-                                    await nwpu.send("成绩获取失败，请稍后再试")
-                                else:
-                                    await nwpu.send("无成绩喵")
-                                await nwpu.send(
-                                    "----------------\n"
-                                    "获取课表中...\n"
-                                    "----------------"
-                                )
-                                course_schedule_pic_bytes = await draw_course_schedule_pic(
-                                    folder_path, await nwpu_query_class.get_course_table()
-                                )
-                                await nwpu.send(
-                                    MessageSegment.image(course_schedule_pic_bytes)
-                                )
-
-                                await nwpu.send(
-                                    "-------------------\n"
-                                    "获取考试信息中...\n"
-                                    "-------------------"
-                                )
-                                exams = await nwpu_query_class.get_exams(False)
-                                exams_msg = (
-                                    ("你的考试有：\n" + get_exams_msg(exams))
-                                    if exams
-                                    else "暂无考试"
-                                )
-                                await nwpu.finish(exams_msg)
-                            else:
-                                await nwpu.finish(
-                                    "获取身份id失败，请使用 翱翔刷新id 手动获取"
-                                )
                         elif (
                             msg == "全部排考"
                             or msg == "全部考试"
@@ -448,7 +351,7 @@ async def nwpu_handel_function(
                     if status == 0:
                         # 输入验证码
                         if not if_need_verification:
-                            await nwpu.send("登陆成功！")
+                            await nwpu.finish("登陆成功！")
                         else:
 
                             @waiter(waits=["message"], keep_session=True)
@@ -465,7 +368,7 @@ async def nwpu_handel_function(
                                     verification_code
                                 )
                                 if status == 2:
-                                    await nwpu.send("登陆成功！")
+                                    await nwpu.finish("登陆成功！")
                                 elif status == 3:
                                     await nwpu.send(
                                         f"验证码错误，请重新输入验证码\n输入 停止 可以终止此次登陆"
@@ -475,98 +378,6 @@ async def nwpu_handel_function(
                                     await nwpu.finish(
                                         f"出错了，返回状态码{status}，此次登陆已终止"
                                     )
-                        if_get_student_assoc_success, student_assoc_all = (
-                            await nwpu_query_class.get_student_assoc()
-                        )
-                        if if_get_student_assoc_success:
-                            # 有多个身份号需要选择
-                            if student_assoc_all:
-                                logger.info(f"")
-                                result = []
-                                for sid, info in student_assoc_all.items():
-                                    result.append(f"\n身份号 {sid}:\n{info}\n")
-                                await nwpu.send(
-                                    f"查询到多个身份:\n\n{''.join(result)}"
-                                )
-                                if (
-                                    student_assoc := await prompt(
-                                        "请输入要绑定的身份号（六位纯数字）"
-                                    )
-                                ) is None:
-                                    await nwpu.finish("已超时，本次登陆结束")
-                                student_assoc = (
-                                    student_assoc.extract_plain_text().strip()
-                                )
-                                if student_assoc in str(student_assoc_all) and len(student_assoc) == 6 and student_assoc.isdigit():
-                                    nwpu_query_class.student_assoc = student_assoc
-                                else:
-                                    await nwpu.send("未匹配到该身份，已随机绑定一个身份，可使用 翱翔切换 更换身份")
-                                with open(
-                                    nwpu_query_class.info_file_path,
-                                    "r",
-                                    encoding="utf-8",
-                                ) as f:
-                                    info = json.load(f)
-                                info["student_assoc"] = nwpu_query_class.student_assoc
-                                with open(
-                                    nwpu_query_class.info_file_path,
-                                    "w",
-                                    encoding="utf-8",
-                                ) as f:
-                                    json.dump(info, f, indent=4, ensure_ascii=False)
-
-                            await nwpu.send(
-                                "----------------\n"
-                                "获取排名中...\n"
-                                "----------------"
-                            )
-                            rank_msg = await nwpu_query_class.get_rank(False)
-                            await nwpu.send(rank_msg)
-                            await nwpu.send(
-                                "----------------\n"
-                                "获取成绩中...\n"
-                                "----------------"
-                            )
-                            grades = await nwpu_query_class.get_grades(
-                                if_only_last_sem=False
-                            )
-                            if grades:
-                                grades_img_bytes = await generate_img_from_grades(
-                                    grades
-                                )
-                                await nwpu.send(MessageSegment.image(grades_img_bytes))
-                            elif grades is None:
-                                await nwpu.send("成绩获取失败，请稍后再试")
-                            else:
-                                await nwpu.send("无成绩喵")
-                            await nwpu.send(
-                                "----------------\n"
-                                "获取课表中...\n"
-                                "----------------"
-                            )
-                            course_schedule_pic_bytes = await draw_course_schedule_pic(
-                                folder_path, await nwpu_query_class.get_course_table()
-                            )
-                            await nwpu.send(
-                                MessageSegment.image(course_schedule_pic_bytes)
-                            )
-
-                            await nwpu.send(
-                                "-------------------\n"
-                                "获取考试信息中...\n"
-                                "-------------------"
-                            )
-                            exams = await nwpu_query_class.get_exams(False)
-                            exams_msg = (
-                                ("你的考试有：\n" + get_exams_msg(exams))
-                                if exams
-                                else "暂无考试"
-                            )
-                            await nwpu.finish(exams_msg)
-                        else:
-                            await nwpu.finish(
-                                "获取身份id失败，请使用 翱翔刷新 手动获取"
-                            )
                     elif status == -1:
                         await nwpu.send(
                             f"密码错误，请重新输入密码\n输入 停止 可以终止此次登陆"
