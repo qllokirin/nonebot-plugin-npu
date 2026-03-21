@@ -376,6 +376,51 @@ class NwpuQuery:
             tab.browser.quit()
             return grades
 
+    # 查询财务
+    @run_sync
+    def get_money(self):
+        browser = Chromium(self.co)
+        tab = browser.latest_tab
+        money_info = []
+        try:
+            logger.debug("="*20)
+            tab.get('https://ecampus.nwpu.edu.cn')
+            logger.debug("第一次打开网站")
+            time.sleep(3)
+            tab.set.cookies(f'TGC={self.info["cookies"]["TGC"]};')
+            logger.debug("设置cookie完成")
+            tab.get('https://ecampus.nwpu.edu.cn')
+            logger.debug("第二次打开网站")
+            time.sleep(5)
+            tab.ele('财务系统').click()
+            logger.debug("点击财务系统")
+            time.sleep(5)
+            tab = browser.latest_tab
+            tab.ele('@id=LinkButton_wscx').click()
+            logger.debug("点击财务查询系统")
+            time.sleep(5)
+            tab = browser.latest_tab
+            tab.listen.start("wscx.nwpu.edu.cn/api-zhcx/getStudentSRCX")
+            tab.refresh()
+            logger.debug("等待信息")
+            res = tab.listen.wait(timeout=20)
+            logger.debug("等待结束")
+            tab.listen.stop()
+            logger.debug("停止监听")
+            money_info = res.response.body["data"]["data"]
+            logger.debug("money_info")
+            logger.info("财务信息获取成功，保存中……")
+            with open(self.info_file_path, "r", encoding="utf-8") as f:
+                info = json.load(f)
+            info["money"] = money_info
+            with open(self.info_file_path, "w", encoding="utf-8") as f:
+                json.dump(info, f, indent=4, ensure_ascii=False)
+        except Exception as e:
+            logger.error("出现异常:", e)
+        finally:
+            tab.browser.quit()
+            return money_info
+
     async def get_rank(self, if_all_semester=False):
         url = "https://jwxt.nwpu.edu.cn/student/for-std/student-portrait"
         await self.client.get(url, headers=self.headers, timeout=5)
@@ -503,26 +548,36 @@ import os
 
 async def main():
     account = os.environ.get("ACCOUNT")
-    logger.info(account)
+    logger.debug(account)
     if not account:
         account = input("请输入账号: ")
     folder_path = Path(__file__).parent / "test"
     info_file_path = folder_path / f"{account}.json"
     nwpu_query_class = NwpuQuery(folder_path, info_file_path)
+    # 不以无头模式启动，方面观察
+    nwpu_query_class.co = ChromiumOptions().set_user_data_path('test').auto_port()
+    nwpu_query_class.co.no_imgs(True).mute(True)
+    nwpu_query_class.co.set_argument('--no-sandbox')
+    nwpu_query_class.co.set_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36')
+    logger.debug(info_file_path)
     if os.path.isfile(info_file_path):
         await nwpu_query_class.use_recent_cookies_login()
-        grades = await nwpu_query_class.get_grades(if_only_last_sem=True)
-        logger.info(f"成绩信息: {generate_grades_to_msg(grades)}")
-        rank_msg = await nwpu_query_class.get_rank(False)
-        logger.info(f"排名信息: {rank_msg}")
-        exams = await nwpu_query_class.get_exams(True)
-        logger.info(f"考试信息: {get_exams_msg(exams)}")
-        course_table_str = await nwpu_query_class.get_course_table()
-        logger.info(f"课表信息: {course_table_str}")
-        course_schedule_pic_bytes = await draw_course_schedule_pic(
-            folder_path, course_table_str
-        )
-        logger.info(f"课表信息: {course_schedule_pic_bytes[:20]}...")
+        # grades = await nwpu_query_class.get_grades(if_only_last_sem=True)
+        # logger.info(f"成绩信息: {generate_grades_to_msg(grades)}")
+        
+        money_info = await nwpu_query_class.get_money()
+        logger.info(f"财务信息: {money_info}")
+        
+        # rank_msg = await nwpu_query_class.get_rank(False)
+        # logger.info(f"排名信息: {rank_msg}")
+        # exams = await nwpu_query_class.get_exams(True)
+        # logger.info(f"考试信息: {get_exams_msg(exams)}")
+        # course_table_str = await nwpu_query_class.get_course_table()
+        # logger.info(f"课表信息: {course_table_str}")
+        # course_schedule_pic_bytes = await draw_course_schedule_pic(
+        #     folder_path, course_table_str
+        # )
+        # logger.info(f"课表信息: {course_schedule_pic_bytes[:20]}...")
         # 查看课表图片
         # from PIL import Image
         # from io import BytesIO
