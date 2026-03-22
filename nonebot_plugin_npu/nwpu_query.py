@@ -569,8 +569,7 @@ async def main():
         
         money_info = await nwpu_query_class.get_money()
         logger.info(f"财务信息: {money_info}")
-        money_html = await generate_money_html(money_info)
-        pic_bytes = await html_to_pic(money_html)
+        money_img_bytes = await draw_money_info_pic(money_info)
         
         # rank_msg = await nwpu_query_class.get_rank(False)
         # logger.info(f"排名信息: {rank_msg}")

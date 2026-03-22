@@ -76,6 +76,12 @@ def generate_img_from_grades(grades):
     grades_img_bytes = imgkit.from_string(html_table_content, False, options=options)
     return grades_img_bytes
 
+def generate_money_to_msg(money):
+    money_msg = ""
+    for item in money:
+        money_msg += "名称：" + item["xmmc"] + "\n"
+        money_msg += "金额：" + str(item["sfje"]) + "\n"
+    return money_msg[:-1]
 
 def generate_grades_to_msg(grades):
     grades_msg = ""

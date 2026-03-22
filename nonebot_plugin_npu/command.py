@@ -28,10 +28,7 @@ from .draw_course_schedule_pic import (
     check_if_course_schedule_only_one,
     draw_course_schedule_pic,
 )
-from .draw_money_pic import generate_money_html
-require("nonebot_plugin_htmlkit")
-from nonebot_plugin_htmlkit import html_to_pic
-
+from .draw_money_pic import draw_money_info_pic
 global_config = get_plugin_config(Config)
 
 
@@ -318,9 +315,8 @@ async def nwpu_handel_function(
                             money_info = await nwpu_query_class.get_money()
                             if money_info:
                                 await nwpu.send("正在生成财务信息图片")
-                                money_html = await generate_money_html(money_info)
-                                pic_bytes = await html_to_pic(money_html)
-                                await nwpu.finish(MessageSegment.image(pic_bytes))
+                                money_img_bytes = await draw_money_info_pic(money_info)
+                                await nwpu.finish(MessageSegment.image(money_img_bytes))
                             else:
                                 await nwpu.finish("暂无财务信息")
                         else:
@@ -474,7 +470,7 @@ async def _(bot: Bot, event: Event, args: Message = CommandArg()):
         info_file_path = folder_path / f"{user_id}.json"
         electric_information = {}
         if info_file_path.exists():
-            electric_information = json.loads(info_file_path.read_text(encoding="utf-8")).get("electric_information", {})
+            electric_information = json.loads(info_file_path.read_text(encoding="utf-8")).get("electric", {})
         if msg := args.extract_plain_text().strip():
             if msg == "查询":
                 if electric_information:
@@ -541,7 +537,7 @@ async def _(bot: Bot, event: Event, args: Message = CommandArg()):
                     room = room_all[int(room_msg.extract_plain_text().strip())]["value"]
                     electric_information = {"campus": campus, "building": building, "room": room}
                     info = json.loads(info_file_path.read_text(encoding="utf-8"))
-                    info["electric_information"] = electric_information
+                    info["electric"] = electric_information
                     info_file_path.write_text(
                         json.dumps(info, indent=4, ensure_ascii=False),
                         encoding="utf-8"

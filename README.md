@@ -107,26 +107,19 @@ plugins = ["nonebot-plugin-npu"]
 在`.env.prod`/`.env`中写入以下字段，也可不填，默认值如下
 
 ```
-npu_check_time=60
-npu_electric_check_time=30
-npu_if_check_grades=true
-npu_if_check_exams=true
-npu_if_check_when_connect=false
-npu_begin_check_hour=8
-npu_end_check_hour=22
+# 每60分钟执行一次，执行时在60分钟内随机sleep，错开检测时间，减少服务器压力
+npu_check_time: int = 60
+npu_if_check_grades: bool = True
+npu_begin_check_hour: int = 8
+npu_end_check_hour: int = 22
+# 每80分钟执行一次，执行时在80分钟内随机sleep，错开检测时间，减少服务器压力
+npu_check_money_time: int = 80
+npu_if_check_money: bool = False
+# 每天12点执行一次，执行时在30分钟内随机sleep
+npu_electric_check_time: int = 30
+# 在链接上bot时就全部执行一遍，方便测试
+npu_if_check_when_connect: bool = False
 ```
-
-|        参数         |  值  |          说明          |
-| :-----------------: | :--: | :--------------------: |
-|   npu_check_time    | int  | 每多少分钟检测一次成绩 |
-|   npu_electric_check_time    | int  | 每多少分钟检测一次电费 |
-| npu_if_check_grades | bool |      是否检测成绩      |
-| npu_if_check_exams  | bool |     是否检测新考试     |
-| npu_if_check_when_connect  | bool |     当connect的是否执行一次检测     |
-| npu_if_check_course_schedule | bool | 是否检查课表变动 |
-| npu_if_check_course_schedule_send | bool | 是否推送课表变动 |
-| npu_begin_check_hour | int | 起始检测时间，在x点之前不会检测 |
-| npu_end_check_hour | int | 最末检测时间，在x点之后不会检测 |
 
 > [!TIP]
 >
