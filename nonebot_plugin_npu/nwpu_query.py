@@ -55,6 +55,7 @@ if __name__ != "__main__":
         get_exams_msg
     )
     from .jwxt.get_new_cookie_Fkjfy9yPdPQuP import get_new_cookie_Fkjfy9yPdPQuP
+    from .draw_money_pic import draw_money_info_pic
     from .draw_course_schedule_pic import (
         check_if_course_schedule_only_one,
         draw_course_schedule_pic,
@@ -62,6 +63,7 @@ if __name__ != "__main__":
 else:
     from jwxt.get_new_cookie_Fkjfy9yPdPQuP import get_new_cookie_Fkjfy9yPdPQuP
     from utils import generate_grades_to_msg, get_exams_msg
+    from draw_money_pic import draw_money_info_pic
     from draw_course_schedule_pic import (
         check_if_course_schedule_only_one,
         draw_course_schedule_pic,
@@ -567,6 +569,8 @@ async def main():
         
         money_info = await nwpu_query_class.get_money()
         logger.info(f"财务信息: {money_info}")
+        money_html = await generate_money_html(money_info)
+        pic_bytes = await html_to_pic(money_html)
         
         # rank_msg = await nwpu_query_class.get_rank(False)
         # logger.info(f"排名信息: {rank_msg}")

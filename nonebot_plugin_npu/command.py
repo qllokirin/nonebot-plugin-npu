@@ -28,6 +28,9 @@ from .draw_course_schedule_pic import (
     check_if_course_schedule_only_one,
     draw_course_schedule_pic,
 )
+from .draw_money_pic import generate_money_html
+require("nonebot_plugin_htmlkit")
+from nonebot_plugin_htmlkit import html_to_pic
 
 global_config = get_plugin_config(Config)
 
@@ -310,6 +313,16 @@ async def nwpu_handel_function(
                             else:
                                 await nwpu.send("无成绩喵")
                             await nwpu.finish()
+                        elif msg == "财务" or msg == "财务信息":
+                            await nwpu.send("正在获取财务信息，请稍等")
+                            money_info = await nwpu_query_class.get_money()
+                            if money_info:
+                                await nwpu.send("正在生成财务信息图片")
+                                money_html = await generate_money_html(money_info)
+                                pic_bytes = await html_to_pic(money_html)
+                                await nwpu.finish(MessageSegment.image(pic_bytes))
+                            else:
+                                await nwpu.finish("暂无财务信息")
                         else:
                             await nwpu.finish(
                                 "那是什么 我不知道\n" "发送 help 可获取全部指令"
