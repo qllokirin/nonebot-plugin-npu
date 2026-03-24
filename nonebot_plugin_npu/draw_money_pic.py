@@ -26,7 +26,7 @@ async def draw_money_info_pic(money_info: List[Dict[str, Any]]):
     # 生成HTML内容
     html_content = await generate_money_html(money_info)
     try:
-        money_img_bytes = await html_to_pic(html_content)
+        money_img_bytes = await html_to_pic(html_content, max_width=1500, dpi=600.0,default_font_size=18.0)
         return money_img_bytes
     except Exception as e:
         logger.error(f"生成财务信息图片失败: {e}")

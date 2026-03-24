@@ -208,6 +208,8 @@ async def check_electric_scheduled():
 async def check_money(qq, bot, nwpu_query_class_sched):
     logger.debug(f"正在检测{qq}的check_money")
     if global_config.npu_if_check_money:
+        sleep_time = random.uniform(0, global_config.npu_check_money_time * 60)
+        await asyncio.sleep(sleep_time)
         if "money" in nwpu_query_class_sched.info:
             money_old = nwpu_query_class_sched.info.get("money", [])
             money = await nwpu_query_class_sched.get_money()
