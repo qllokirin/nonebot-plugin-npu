@@ -374,6 +374,7 @@ class NwpuQuery:
                     json.dump(info, f, indent=4, ensure_ascii=False)
         except Exception as e:
             logger.error("出现异常:", e)
+            raise ValueError("成绩获取失败")
         finally:
             tab.browser.quit()
             return grades
@@ -419,6 +420,7 @@ class NwpuQuery:
                 json.dump(info, f, indent=4, ensure_ascii=False)
         except Exception as e:
             logger.error("出现异常:", e)
+            raise ValueError("财务信息获取失败")
         finally:
             tab.browser.quit()
             return money_info

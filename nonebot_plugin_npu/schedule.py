@@ -218,6 +218,12 @@ async def check_money(qq, bot, nwpu_query_class_sched):
                 if money and money_old != []
                 else []
             )
+            # 只保留年月与当前日期相等的
+            new_money = (
+                [money_one for money_one in new_money if money_one.get("nian") == datetime.now().strftime("%Y") and money_one.get("yue") == datetime.now().strftime("%m")]
+                if new_money
+                else []
+            )
             if new_money:
                 money_img_bytes = await draw_money_info_pic(new_money)
                 money_msg = generate_money_to_msg(new_money)
@@ -237,4 +243,4 @@ async def check_money(qq, bot, nwpu_query_class_sched):
 # 定时任务 check_money 检查money
 @scheduler.scheduled_job("interval", minutes=global_config.npu_check_money_time, id="check_money")
 async def check_money_scheduled():
-    asyncio.create_task(scheduled_job_base_task(check_money))
+    asyncio.create_task(scheduled_job_base_task(check_money, global_config.npu_begin_check_hour, global_config.npu_end_check_hour))
