@@ -193,7 +193,7 @@ async def check_electric(qq, bot, nwpu_query_class_sched):
             electric_information["room"],
         )
         logger.info(f"{qq}电费还剩{electric_left}")
-        min_electric_left = 100
+        min_electric_left = 20
         if electric_left < min_electric_left:
             logger.info(f"{qq}电费小于{min_electric_left}，推送消息")
             await bot.send_private_msg(
