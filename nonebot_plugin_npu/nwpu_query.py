@@ -302,6 +302,8 @@ class NwpuQuery:
         if_only_last_sem = False
         browser = Chromium(self.co)
         tab = browser.latest_tab
+        grades_msg = []
+        grades = []
         try:
             logger.debug("="*20)
             tab.get('https://ecampus.nwpu.edu.cn')
@@ -329,8 +331,6 @@ class NwpuQuery:
             res = tab.listen.wait(timeout=20)
             tab.listen.stop()
             info_file_path = 'info.json'
-            grades_msg = []
-            grades = []
             for _, one_semester in (res.response.body["semesterId2studentGrades"]).items():
                 for course in one_semester:
                     name = course["course"]["nameZh"]

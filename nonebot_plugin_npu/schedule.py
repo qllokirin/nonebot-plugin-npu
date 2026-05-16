@@ -86,13 +86,14 @@ async def scheduled_job_base_task(func, begin_check_hour = None, end_check_hour 
         logger.error(f"定时任务出现错误{e!r}\n堆栈信息:\n{error_trace}")
         if global_config.superusers:
             logger.info(f"发送错误日志给SUPERUSERS")
-            for superuser in global_config.superusers:
-                await bot.send_private_msg(
-                    user_id=int(superuser),
-                    message=MessageSegment.text(
-                        f"{func.__name__}_scheduled定时任务 发生错误\n{e!r}\n堆栈信息:\n{error_trace}"
-                    ),
-                )
+            # 定时任务取消报错发送，浏览器模拟太容易报错了
+            # for superuser in global_config.superusers:
+            #     await bot.send_private_msg(
+            #         user_id=int(superuser),
+            #         message=MessageSegment.text(
+            #             f"{func.__name__}_scheduled定时任务 发生错误\n{e!r}\n堆栈信息:\n{error_trace}"
+            #         ),
+            #     )
 
 async def check_base_task(func, qq, bot):
     try:
@@ -133,16 +134,17 @@ async def check_base_task(func, qq, bot):
         logger.error(f"定时任务出现错误{e!r}\n堆栈信息:\n{error_trace}")
         if global_config.superusers:
             logger.info(f"发送错误日志给SUPERUSERS")
-            for superuser in global_config.superusers:
-                await bot.send_private_msg(
-                    user_id=int(superuser),
-                    message=MessageSegment.text(
-                        f"{qq}的检测check_grades_and_ranks_and_exams定时任务 发生错误\n{e!r}\n堆栈信息:\n{error_trace}"
-                    )
-                    + MessageSegment.image(
-                        f"https://q.qlogo.cn/headimg_dl?dst_uin={qq}&spec=640"
-                    ),
-                )
+            # 定时任务取消报错发送，浏览器模拟太容易报错了
+            # for superuser in global_config.superusers:
+            #     await bot.send_private_msg(
+            #         user_id=int(superuser),
+            #         message=MessageSegment.text(
+            #             f"{qq}的检测check_grades_and_ranks_and_exams定时任务 发生错误\n{e!r}\n堆栈信息:\n{error_trace}"
+            #         )
+            #         + MessageSegment.image(
+            #             f"https://q.qlogo.cn/headimg_dl?dst_uin={qq}&spec=640"
+            #         ),
+            #     )
 
 async def check_grades(qq, bot, nwpu_query_class_sched):
     logger.debug(f"正在检测{qq}的check_grades")
